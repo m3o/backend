@@ -39,6 +39,43 @@ const (
 	checkBuffer = 7 * time.Minute
 )
 
+type E2EResult struct {
+	SetupErr    error
+	SignupErr   error
+	ExampleErrs []ExampleError
+}
+
+// platformOK returns true if signup and setup are successful and API examples *mostly* pass
+func (e E2EResult) platformOK() bool {
+	examplesFailed := false
+
+	failedAPI := ""
+	if len(e.ExampleErrs) > 0 {
+		// has more than one API failed?
+		for _, v := range e.ExampleErrs {
+			if len(failedAPI) == 0 {
+				failedAPI = v.API
+				continue
+			}
+			if failedAPI != v.API {
+				examplesFailed = true
+			}
+		}
+	}
+	return e.SetupErr == nil && e.SignupErr == nil && !examplesFailed
+}
+
+func (e E2EResult) examplesOK() bool {
+	return len(e.ExampleErrs) == 0
+}
+
+type ExampleError struct {
+	API         string
+	Endpoint    string
+	ExampleName string
+	Value       error
+}
+
 var (
 	otpRegexp = regexp.MustCompile("please copy and paste this verification code into the signup form:\\s*([a-zA-Z]*)\\s*This code expires")
 )
@@ -141,47 +178,57 @@ func (e *Endtoend) CronCheck() {
 }
 
 func (e *Endtoend) runCheck() error {
-	var err error
 	start := time.Now()
-	defer func() {
-		// record the result
-		result := checkResult{
-			Time:   time.Now().Unix(),
-			Passed: err == nil,
-		}
-		if err != nil {
-			result.Error = err.Error()
-		}
-		b, _ := json.Marshal(result)
+	res := e.signup()
 
-		mstore.Write(&mstore.Record{
-			Key:   keyCheckResult,
-			Value: b,
-		})
-		if err == nil {
-			log.Infof("Signup check took %s to complete", time.Now().Sub(start))
-			return
-		}
+	// record the result
+	result := checkResult{
+		Time:   time.Now().Unix(),
+		Passed: res.platformOK(),
+	}
 
+	if !result.Passed {
+		if res.SetupErr != nil {
+			result.Error = res.SetupErr.Error()
+		} else if res.SignupErr != nil {
+			result.Error = res.SignupErr.Error()
+		} else {
+			errs := make([]string, len(res.ExampleErrs))
+			for i, v := range res.ExampleErrs {
+				errs[i] = fmt.Sprintf("Error running example %s %s %s: %s", v.API, v.Endpoint, v.ExampleName, v.Value)
+			}
+			result.Error = strings.Join(errs, ". ")
+		}
+	}
+	b, _ := json.Marshal(result)
+
+	mstore.Write(&mstore.Record{
+		Key:   keyCheckResult,
+		Value: b,
+	})
+	log.Infof("Signup check took %s to complete", time.Now().Sub(start))
+
+	if !res.platformOK() || !res.examplesOK() {
 		// alert if required
+		action := "signup"
+		if res.platformOK() && !res.examplesOK() {
+			action = "examples"
+		}
 		e.alertSvc.ReportEvent(context.Background(), &alertpb.ReportEventRequest{
 			Event: &alertpb.Event{
 				Category: "monitoring",
-				Action:   "signup",
+				Action:   action,
 				Label:    "endtoend",
 				Value:    1,
-				Metadata: map[string]string{"error": err.Error()},
+				Metadata: map[string]string{"error": result.Error},
 			},
 		}, client.WithAuthToken())
-	}()
-	if err = e.signup(); err != nil {
-		log.Errorf("Error during signup %s", err)
-		return err
 	}
 	return nil
 }
 
-func (e *Endtoend) signup() error {
+func (e *Endtoend) signup() E2EResult {
+	e2eRes := E2EResult{}
 	// reset, delete any existing customers. Try this a few times, we sometimes get timeout
 	var delErr error
 	for i := 0; i < 3; i++ {
@@ -198,7 +245,8 @@ func (e *Endtoend) signup() error {
 		delErr = fmt.Errorf("error while cleaning up existing customer %s", err)
 	}
 	if delErr != nil {
-		return delErr
+		e2eRes.SetupErr = delErr
+		return e2eRes
 	}
 
 	start := time.Now()
@@ -206,12 +254,14 @@ func (e *Endtoend) signup() error {
 		"application/json",
 		strings.NewReader(fmt.Sprintf(`{"email":"%s"}`, e.email)))
 	if err != nil {
-		return fmt.Errorf("error requesting verification email %s", err)
+		e2eRes.SignupErr = fmt.Errorf("error requesting verification email %s", err)
+		return e2eRes
 	}
 	defer rsp.Body.Close()
 	if rsp.StatusCode != 200 {
 		b, _ := ioutil.ReadAll(rsp.Body)
-		return fmt.Errorf("error requesting verification email %s %s", rsp.Status, string(b))
+		e2eRes.SignupErr = fmt.Errorf("error requesting verification email %s %s", rsp.Status, string(b))
+		return e2eRes
 	}
 
 	code := ""
@@ -244,19 +294,22 @@ func (e *Endtoend) signup() error {
 		break
 	}
 	if len(code) == 0 {
-		return fmt.Errorf("no OTP code received by email")
+		e2eRes.SignupErr = fmt.Errorf("no OTP code received by email")
+		return e2eRes
 	}
 	rsp, err = http.Post("https://api.m3o.com/onboarding/signup/CompleteSignup",
 		"application/json",
 		strings.NewReader(fmt.Sprintf(`{"email":"%s", "token":"%s", "secret":"%s"}`, e.email, code, uuid.New().String())))
 
 	if err != nil {
-		return fmt.Errorf("error completing signup %s", err)
+		e2eRes.SignupErr = fmt.Errorf("error completing signup %s", err)
+		return e2eRes
 	}
 	defer rsp.Body.Close()
 	b, _ := ioutil.ReadAll(rsp.Body)
 	if rsp.StatusCode != 200 {
-		return fmt.Errorf("error completing signup %s %s", rsp.Status, string(b))
+		e2eRes.SignupErr = fmt.Errorf("error completing signup %s %s", rsp.Status, string(b))
+		return e2eRes
 	}
 	var srsp onpb.CompleteSignupResponse
 	json.Unmarshal(b, &srsp)
@@ -279,7 +332,8 @@ func (e *Endtoend) signup() error {
 	}
 
 	if custErr != nil {
-		return custErr
+		e2eRes.SignupErr = custErr
+		return e2eRes
 	}
 
 	loopStart = time.Now()
@@ -295,30 +349,35 @@ func (e *Endtoend) signup() error {
 	}
 	log.Infof("Balance is %d", currBal)
 	if currBal == 0 {
-		return fmt.Errorf("no intro credit was applied to customer")
+		e2eRes.SignupErr = fmt.Errorf("no intro credit was applied to customer")
+		return e2eRes
 	}
 
 	// generate a key
 	req, err := http.NewRequest("POST", "https://api.m3o.com/v1/api/keys/generate", strings.NewReader(`{"description":"test key", "scopes": ["*"]}`))
 	if err != nil {
-		return fmt.Errorf("error generating key request %s", err)
+		e2eRes.SetupErr = fmt.Errorf("error generating key request %s", err)
+		return e2eRes
 	}
 	req.Header.Set("Authorization", "Bearer "+srsp.AuthToken.AccessToken)
 	req.Header.Set("Content-Type", "application/json")
 	rsp, err = http.DefaultClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("error generating key %s", err)
+		e2eRes.SetupErr = fmt.Errorf("error generating key %s", err)
+		return e2eRes
 	}
 	defer rsp.Body.Close()
 	b, _ = ioutil.ReadAll(rsp.Body)
 	if rsp.StatusCode != 200 {
-		return fmt.Errorf("error generating key %s %s", rsp.Status, string(b))
+		e2eRes.SetupErr = fmt.Errorf("error generating key %s %s", rsp.Status, string(b))
+		return e2eRes
 	}
 	keyRsp := struct {
 		ApiKey string `json:"api_key"`
 	}{}
 	if err := json.Unmarshal(b, &keyRsp); err != nil {
-		return fmt.Errorf("error generating key, failed to unmarshal response %s", err)
+		e2eRes.SetupErr = fmt.Errorf("error generating key, failed to unmarshal response %s", err)
+		return e2eRes
 	}
 
 	// sleep to allow the api key to be enabled - async processing bla bla bla
@@ -327,10 +386,10 @@ func (e *Endtoend) signup() error {
 	// run some apis
 	pubrsp, err := e.pubSvc.List(context.Background(), &pubpb.ListRequest{}, client.WithAuthToken())
 	if err != nil {
-		return fmt.Errorf("error listing apis %s", err)
+		e2eRes.SetupErr = fmt.Errorf("error listing apis %s", err)
 	}
 
-	exampleErrs := []string{}
+	exampleErrs := []ExampleError{}
 	for _, api := range pubrsp.Apis {
 		var examples apiExamples
 		if len(api.ExamplesJson) == 0 {
@@ -341,12 +400,18 @@ func (e *Endtoend) signup() error {
 		keys, err := objectKeys(api.ExamplesJson)
 		if err != nil {
 			log.Errorf("Failed to find keys for %s %s", api.Name, err)
-			exampleErrs = append(exampleErrs, fmt.Sprintf("Failed to find keys for %s %s", api.Name, err))
+			exampleErrs = append(exampleErrs, ExampleError{
+				API:   api.Name,
+				Value: fmt.Errorf("Failed to find keys for %s %s", api.Name, err),
+			})
 			continue
 		}
 		if err := json.Unmarshal([]byte(api.ExamplesJson), &examples); err != nil {
 			log.Errorf("Failed to unmarshal examples for %s %s", api.Name, err)
-			exampleErrs = append(exampleErrs, fmt.Sprintf("Failed to unmarshal examples for %s %s", api.Name, err))
+			exampleErrs = append(exampleErrs, ExampleError{
+				API:   api.Name,
+				Value: fmt.Errorf("Failed to unmarshal examples for %s %s", api.Name, err),
+			})
 			continue
 		}
 
@@ -357,14 +422,24 @@ func (e *Endtoend) signup() error {
 				b, err := json.Marshal(ex.Request)
 				if err != nil {
 					log.Errorf("Failed to marshal example request for %s %s %s %s", api.Name, endpointName, ex.Title, err)
-					exampleErrs = append(exampleErrs, fmt.Sprintf("Failed to marshal example request for %s %s %s %s", api.Name, endpointName, ex.Title, err))
+					exampleErrs = append(exampleErrs, ExampleError{
+						API:         api.Name,
+						Endpoint:    endpointName,
+						ExampleName: ex.Title,
+						Value:       fmt.Errorf("Failed to marshal example request %s", err),
+					})
 					continue
 				}
 
 				req, err := http.NewRequest("POST", fmt.Sprintf("https://api.m3o.com/v1/%s/%s", api.Name, endpointName), bytes.NewReader(b))
 				if err != nil {
 					log.Errorf("Error generating example request %s %s %s %s", api.Name, endpointName, ex.Title, err)
-					exampleErrs = append(exampleErrs, fmt.Sprintf("Error generating example request %s %s %s %s", api.Name, endpointName, ex.Title, err))
+					exampleErrs = append(exampleErrs, ExampleError{
+						API:         api.Name,
+						Endpoint:    endpointName,
+						ExampleName: ex.Title,
+						Value:       fmt.Errorf("Error generating example request %s", err),
+					})
 					continue
 				}
 				req.Header.Set("Authorization", "Bearer "+keyRsp.ApiKey)
@@ -372,14 +447,24 @@ func (e *Endtoend) signup() error {
 				rsp, err = http.DefaultClient.Do(req)
 				if err != nil {
 					log.Errorf("Error running example %s %s %s %s", api.Name, endpointName, ex.Title, err)
-					exampleErrs = append(exampleErrs, fmt.Sprintf("Error running example %s %s %s %s", api.Name, endpointName, ex.Title, err))
+					exampleErrs = append(exampleErrs, ExampleError{
+						API:         api.Name,
+						Endpoint:    endpointName,
+						ExampleName: ex.Title,
+						Value:       fmt.Errorf("Error running example %s", err),
+					})
 					continue
 				}
 				defer rsp.Body.Close()
 				b, _ = ioutil.ReadAll(rsp.Body)
 				if rsp.StatusCode != 200 {
 					log.Errorf("Error running example %s %s %s %s %s", api.Name, endpointName, ex.Title, rsp.Status, string(b))
-					exampleErrs = append(exampleErrs, fmt.Sprintf("Error running example %s %s %s %s %s", api.Name, endpointName, ex.Title, rsp.Status, string(b)))
+					exampleErrs = append(exampleErrs, ExampleError{
+						API:         api.Name,
+						Endpoint:    endpointName,
+						ExampleName: ex.Title,
+						Value:       fmt.Errorf("Error running example %s %s", rsp.Status, string(b)),
+					})
 					continue
 				}
 				log.Infof("API response for example %s %s %s %s %s", api.Name, endpointName, ex.Title, rsp.Status, string(b))
@@ -390,9 +475,9 @@ func (e *Endtoend) signup() error {
 	}
 	// TODO add credit via stripe
 	if len(exampleErrs) > 0 {
-		return fmt.Errorf("Errors running api examples. %s", strings.Join(exampleErrs, ". "))
+		e2eRes.ExampleErrs = exampleErrs
 	}
-	return nil
+	return e2eRes
 }
 
 func objectKeys(s string) ([]string, error) {
