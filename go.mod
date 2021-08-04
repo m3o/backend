@@ -4,8 +4,8 @@ go 1.14
 
 require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-redis/redis/v8 v8.5.0
+	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang/protobuf v1.4.3
 	github.com/google/go-cmp v0.5.5 // indirect
 	github.com/google/uuid v1.1.2
