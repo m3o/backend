@@ -69,6 +69,14 @@ func (e E2EResult) examplesOK() bool {
 	return len(e.ExampleErrs) == 0
 }
 
+func (e E2EResult) examplesErr() string {
+	errs := make([]string, len(e.ExampleErrs))
+	for i, v := range e.ExampleErrs {
+		errs[i] = fmt.Sprintf("Error running example %s %s %s: %s", v.API, v.Endpoint, v.ExampleName, v.Value)
+	}
+	return strings.Join(errs, ". ")
+}
+
 type ExampleError struct {
 	API         string
 	Endpoint    string
@@ -193,11 +201,7 @@ func (e *Endtoend) runCheck() error {
 		} else if res.SignupErr != nil {
 			result.Error = res.SignupErr.Error()
 		} else {
-			errs := make([]string, len(res.ExampleErrs))
-			for i, v := range res.ExampleErrs {
-				errs[i] = fmt.Sprintf("Error running example %s %s %s: %s", v.API, v.Endpoint, v.ExampleName, v.Value)
-			}
-			result.Error = strings.Join(errs, ". ")
+			result.Error = res.examplesErr()
 		}
 	}
 	b, _ := json.Marshal(result)
@@ -220,7 +224,7 @@ func (e *Endtoend) runCheck() error {
 				Action:   action,
 				Label:    "endtoend",
 				Value:    1,
-				Metadata: map[string]string{"error": result.Error},
+				Metadata: map[string]string{"error": res.examplesErr()},
 			},
 		}, client.WithAuthToken())
 	}
