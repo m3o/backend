@@ -215,8 +215,12 @@ func (e *Endtoend) runCheck() error {
 	if !res.platformOK() || !res.examplesOK() {
 		// alert if required
 		action := "signup"
+		errString := result.Error
 		if res.platformOK() && !res.examplesOK() {
 			action = "examples"
+			if len(errString) == 0 {
+				errString = res.examplesErr()
+			}
 		}
 		e.alertSvc.ReportEvent(context.Background(), &alertpb.ReportEventRequest{
 			Event: &alertpb.Event{
@@ -224,7 +228,7 @@ func (e *Endtoend) runCheck() error {
 				Action:   action,
 				Label:    "endtoend",
 				Value:    1,
-				Metadata: map[string]string{"error": res.examplesErr()},
+				Metadata: map[string]string{"error": errString},
 			},
 		}, client.WithAuthToken())
 	}
@@ -391,6 +395,7 @@ func (e *Endtoend) signup() E2EResult {
 	pubrsp, err := e.pubSvc.List(context.Background(), &pubpb.ListRequest{}, client.WithAuthToken())
 	if err != nil {
 		e2eRes.SetupErr = fmt.Errorf("error listing apis %s", err)
+		return e2eRes
 	}
 
 	exampleErrs := []ExampleError{}
