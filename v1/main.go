@@ -3,9 +3,11 @@ package main
 import (
 	"github.com/m3o/services/pkg/tracing"
 	"github.com/m3o/services/v1/handler"
+	"github.com/micro/micro/plugin/prometheus/v3"
 	"github.com/micro/micro/v3/service"
 	"github.com/micro/micro/v3/service/api"
 	"github.com/micro/micro/v3/service/logger"
+	"github.com/micro/micro/v3/service/metrics"
 	"github.com/micro/micro/v3/service/registry"
 	"github.com/micro/micro/v3/service/registry/cache"
 )
@@ -67,6 +69,14 @@ func main() {
 
 	traceCloser := tracing.SetupOpentracing("v1")
 	defer traceCloser.Close()
+	// Set up a default metrics reporter (being careful not to clash with any that have already been set):
+	if !metrics.IsSet() {
+		prometheusReporter, err := prometheus.New()
+		if err != nil {
+			logger.Fatalf("Failed to configure prom %s", err)
+		}
+		metrics.SetDefaultMetricsReporter(prometheusReporter)
+	}
 
 	// Run service
 	if err := srv.Run(); err != nil {
