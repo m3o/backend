@@ -1,6 +1,8 @@
 package main
 
 import (
+	_ "net/http/pprof"
+
 	"github.com/m3o/services/pkg/tracing"
 	"github.com/m3o/services/v1/handler"
 	"github.com/micro/micro/plugin/prometheus/v3"
