@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -11,8 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt"
-	lru "github.com/hashicorp/golang-lru"
 	m3oauth "github.com/m3o/services/pkg/auth"
 	publicapi "github.com/m3o/services/publicapi/proto"
 	v1 "github.com/m3o/services/v1/proto"
@@ -21,6 +22,7 @@ import (
 	"github.com/micro/micro/v3/service/api"
 	"github.com/micro/micro/v3/service/auth"
 	"github.com/micro/micro/v3/service/client"
+	"github.com/micro/micro/v3/service/config"
 	"github.com/micro/micro/v3/service/context/metadata"
 	"github.com/micro/micro/v3/service/errors"
 	"github.com/micro/micro/v3/service/events"
@@ -31,45 +33,43 @@ import (
 	"github.com/micro/micro/v3/service/store"
 )
 
+const (
+	keyCachePrefix = "v1-service/keycache"
+)
+
 type V1 struct {
 	papi        publicapi.PublicapiService
 	accsvc      authpb.AccountsService
 	keyRecCache *expiringLRUCache
 }
 
-type cacheValueWrapper struct {
-	value   interface{}
-	expires time.Time
-}
-
 // expiringLRUCache works much like the LRUCache but adds an expiry to each entry
 // implementation is naive and has many edge cases because we don't actively expire things but just check
 // on the `Get()` call. Good enough for our purposes until we implement a redis cache
 type expiringLRUCache struct {
-	*lru.Cache
-	ttl time.Duration
+	redisClient *redis.Client
+	ttl         time.Duration
 }
 
-func (c *expiringLRUCache) Add(key, value interface{}) bool {
-	return c.Cache.Add(key, &cacheValueWrapper{value: value, expires: time.Now().Add(c.ttl)})
+func (c *expiringLRUCache) Add(ctx context.Context, key string, value interface{}) error {
+	val, _ := json.Marshal(value)
+	return c.redisClient.Set(ctx, fmt.Sprintf("%s:%s", keyCachePrefix, key), val, c.ttl).Err()
 }
 
-func (c *expiringLRUCache) Get(key interface{}) (interface{}, bool) {
-	val, ok := c.Cache.Get(key)
-	if !ok {
-		return nil, false
+func (c *expiringLRUCache) Remove(ctx context.Context, key string) error {
+	return c.redisClient.Del(ctx, fmt.Sprintf("%s:%s", keyCachePrefix, key)).Err()
+}
+
+func (c *expiringLRUCache) GetAPIKeyRecord(ctx context.Context, key string) (*apiKeyRecord, error) {
+	b, err := c.redisClient.Get(ctx, fmt.Sprintf("%s:%s", keyCachePrefix, key)).Bytes()
+	if err != nil {
+		return nil, err
 	}
-	wrappedVal := val.(*cacheValueWrapper)
-	if wrappedVal.hasExpired() {
-		// We don't delete the entry here because we'd have to introduce locking (doing a get then delete)
-		//
-		return nil, false
+	var keyRec apiKeyRecord
+	if err := json.Unmarshal(b, &keyRec); err != nil {
+		return nil, err
 	}
-	return wrappedVal.value, true
-}
-
-func (c cacheValueWrapper) hasExpired() bool {
-	return time.Now().After(c.expires)
+	return &keyRec, nil
 }
 
 const (
@@ -86,11 +86,31 @@ var (
 )
 
 func NewHandler(srv *service.Service) *V1 {
-	c, err := lru.New(10000) // TODO how big should this be?
+	redisConfig := struct {
+		Address  string
+		User     string
+		Password string
+	}{}
+
+	val, err := config.Get("micro.v1.redis")
 	if err != nil {
-		log.Fatalf("Failed to create LRU cache %s", err)
+		log.Fatalf("No redis config found %s", err)
 	}
-	keyRecCache := expiringLRUCache{Cache: c, ttl: lruCacheTTL}
+	if err := val.Scan(&redisConfig); err != nil {
+		log.Fatalf("Error parsing redis config %s", err)
+	}
+	if len(redisConfig.Password) == 0 || len(redisConfig.User) == 0 || len(redisConfig.Password) == 0 {
+		log.Fatalf("Missing redis config %s", err)
+	}
+	rc := redis.NewClient(&redis.Options{
+		Addr:     redisConfig.Address,
+		Username: redisConfig.User,
+		Password: redisConfig.Password,
+		TLSConfig: &tls.Config{
+			InsecureSkipVerify: false,
+		},
+	})
+	keyRecCache := expiringLRUCache{redisClient: rc, ttl: lruCacheTTL}
 	v1 := &V1{
 		papi:        publicapi.NewPublicapiService("publicapi", srv.Client()),
 		accsvc:      authpb.NewAccountsService("auth", srv.Client()),
@@ -100,7 +120,7 @@ func NewHandler(srv *service.Service) *V1 {
 	return v1
 }
 
-func (v1 *V1) writeAPIRecord(rec *apiKeyRecord) error {
+func (v1 *V1) writeAPIRecord(ctx context.Context, rec *apiKeyRecord) error {
 	b, err := json.Marshal(rec)
 	if err != nil {
 		return err
@@ -130,11 +150,11 @@ func (v1 *V1) writeAPIRecord(rec *apiKeyRecord) error {
 		return err
 	}
 
-	v1.keyRecCache.Add(rec.ApiKey, rec)
+	v1.keyRecCache.Add(ctx, rec.ApiKey, rec)
 	return nil
 }
 
-func (v1 *V1) deleteAPIRecord(rec *apiKeyRecord) error {
+func (v1 *V1) deleteAPIRecord(ctx context.Context, rec *apiKeyRecord) error {
 	// store under hashed key for API usage
 	if err := store.Delete(fmt.Sprintf("%s:%s", storePrefixHashedKey, rec.ApiKey)); err != nil {
 		return err
@@ -149,7 +169,7 @@ func (v1 *V1) deleteAPIRecord(rec *apiKeyRecord) error {
 	if err := store.Delete(fmt.Sprintf("%s:%s:%s:%s", storePrefixKeyID, rec.Namespace, rec.UserID, rec.ID)); err != nil {
 		return err
 	}
-	v1.keyRecCache.Remove(rec.ApiKey)
+	v1.keyRecCache.Remove(ctx, rec.ApiKey)
 
 	return nil
 }
@@ -199,7 +219,7 @@ func (v1 *V1) checkRequestedScopes(ctx context.Context, requestedScopes []string
 	return true
 }
 
-func (v1 *V1) readAPIRecordByAPIKey(authz string) (string, *apiKeyRecord, error) {
+func (v1 *V1) readAPIRecordByAPIKey(ctx context.Context, authz string) (string, *apiKeyRecord, error) {
 	if len(authz) == 0 || !strings.HasPrefix(authz, "Bearer ") {
 		return "", nil, errUnauthorized
 	}
@@ -211,9 +231,9 @@ func (v1 *V1) readAPIRecordByAPIKey(authz string) (string, *apiKeyRecord, error)
 		return "", nil, errUnauthorized
 	}
 
-	cached, ok := v1.keyRecCache.Get(hashed)
-	if ok {
-		return key, cached.(*apiKeyRecord), nil
+	rec, err := v1.keyRecCache.GetAPIKeyRecord(ctx, hashed)
+	if err == nil {
+		return key, rec, nil
 	}
 
 	recs, err := store.Read(fmt.Sprintf("%s:%s", storePrefixHashedKey, hashed))
@@ -231,7 +251,7 @@ func (v1 *V1) readAPIRecordByAPIKey(authz string) (string, *apiKeyRecord, error)
 		log.Errorf("Error while rehydrating api key record %s", err)
 		return "", nil, errUnauthorized
 	}
-	v1.keyRecCache.Add(hashed, &apiRec)
+	v1.keyRecCache.Add(ctx, hashed, &apiRec)
 
 	return key, &apiRec, nil
 }
@@ -265,7 +285,7 @@ func errBlocked(msg string) error {
 	return errors.Forbidden("v1.blocked", fmt.Sprintf("Request blocked. %s", msg))
 }
 
-func (v1 *V1) refreshToken(apiRec *apiKeyRecord, key string) error {
+func (v1 *V1) refreshToken(ctx context.Context, apiRec *apiKeyRecord, key string) error {
 	// do we need to refresh the token?
 	tok, _, err := new(jwt.Parser).ParseUnverified(apiRec.Token, jwt.MapClaims{})
 	if err != nil {
@@ -284,7 +304,7 @@ func (v1 *V1) refreshToken(apiRec *apiKeyRecord, key string) error {
 				return errInternal
 			}
 			apiRec.Token = tok.AccessToken
-			if err := v1.writeAPIRecord(apiRec); err != nil {
+			if err := v1.writeAPIRecord(ctx, apiRec); err != nil {
 				log.Errorf("Error updating API record %s", err)
 				return errInternal
 			}
@@ -345,7 +365,7 @@ func (v1 *V1) Endpoint(ctx context.Context, stream server.Stream) (retErr error)
 		return errUnauthorized
 	}
 
-	key, apiRec, err := v1.readAPIRecordByAPIKey(md["Authorization"])
+	key, apiRec, err := v1.readAPIRecordByAPIKey(ctx, md["Authorization"])
 	if err != nil {
 		return err
 	}
@@ -367,7 +387,7 @@ func (v1 *V1) Endpoint(ctx context.Context, stream server.Stream) (retErr error)
 		return err
 	}
 
-	if err := v1.refreshToken(apiRec, key); err != nil {
+	if err := v1.refreshToken(ctx, apiRec, key); err != nil {
 		return err
 	}
 	// set the auth

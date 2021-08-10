@@ -105,7 +105,7 @@ func (v1 *V1) GenerateKey(ctx context.Context, req *pb.GenerateKeyRequest, rsp *
 		Created:     time.Now().Unix(),
 		Status:      keyStatusBlocked,
 	}
-	if err := v1.writeAPIRecord(&rec); err != nil {
+	if err := v1.writeAPIRecord(ctx, &rec); err != nil {
 		log.Errorf("Failed to write api record %s", err)
 		return errors.InternalServerError("v1.generate", "Failed to generate api key")
 	}
@@ -189,7 +189,7 @@ func (v1 *V1) RevokeKey(ctx context.Context, request *pb.RevokeRequest, response
 }
 
 func (v1 *V1) deleteKey(ctx context.Context, rec *apiKeyRecord) error {
-	if err := v1.deleteAPIRecord(rec); err != nil {
+	if err := v1.deleteAPIRecord(ctx, rec); err != nil {
 		log.Errorf("Error deleting API key record %s", err)
 		return errors.InternalServerError("v1pi.Revoke", "Error revoking key")
 	}
@@ -253,7 +253,7 @@ func (v1 *V1) updateKeyStatus(ctx context.Context, methodName, ns, userID, keyID
 	for _, k := range keys {
 		k.Status = status
 		k.StatusMessage = statusMessage
-		if err := v1.writeAPIRecord(k); err != nil {
+		if err := v1.writeAPIRecord(ctx, k); err != nil {
 			log.Errorf("Error updating api key record %s", err)
 			return errors.InternalServerError(methodName, "Error updating key")
 		}
