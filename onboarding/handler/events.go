@@ -53,13 +53,13 @@ func (o *Onboarding) processOnboardingEvents(ev mevents.Event) error {
 		return nil
 	}
 	switch ve.Type {
-	case "newSignup":
+	case "XXNOTUSEDXX": // TODO reinstate some signup related processing
 		if err := o.processSignup(ve.NewSignup); err != nil {
 			logger.Errorf("Error processing signup event %s", err)
 			return err
 		}
 	default:
-		logger.Infof("Unrecognised event %+v", ve)
+		logger.Infof("Skipping event %+v", ve)
 	}
 	return nil
 
