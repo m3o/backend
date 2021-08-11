@@ -103,7 +103,7 @@ func (v1 *V1) GenerateKey(ctx context.Context, req *pb.GenerateKeyRequest, rsp *
 		AccID:       authAcc.ID,
 		Token:       tok.AccessToken,
 		Created:     time.Now().Unix(),
-		Status:      keyStatusBlocked,
+		Status:      keyStatusActive,
 	}
 	if err := v1.writeAPIRecord(ctx, &rec); err != nil {
 		log.Errorf("Failed to write api record %s", err)

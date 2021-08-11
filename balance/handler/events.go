@@ -10,7 +10,6 @@ import (
 	stripepb "github.com/m3o/services/stripe/proto"
 	v1 "github.com/m3o/services/v1/proto"
 	"github.com/micro/micro/v3/service/client"
-	"github.com/micro/micro/v3/service/errors"
 	"github.com/micro/micro/v3/service/events"
 	mevents "github.com/micro/micro/v3/service/events"
 	"github.com/micro/micro/v3/service/logger"
@@ -45,7 +44,7 @@ func (b *Balance) processV1apiEvents(ev mevents.Event) error {
 			return err
 		}
 	default:
-		logger.Infof("Unrecognised event %+v", ve)
+		logger.Infof("Skipped event %+v", ve)
 
 	}
 	return nil
@@ -53,37 +52,6 @@ func (b *Balance) processV1apiEvents(ev mevents.Event) error {
 }
 
 func (b *Balance) processAPIKeyCreated(ctx context.Context, ac *v1.APIKeyCreateEvent) error {
-	currBal, err := b.c.read(ctx, ac.UserId, "$balance$")
-	if err != nil {
-		return err
-	}
-
-	// Keys start in blocked status, so unblock if they have the cash
-	if currBal <= 0 {
-		if _, err := b.v1Svc.BlockKey(ctx, &v1.BlockKeyRequest{
-			UserId:    ac.UserId,
-			Namespace: ac.Namespace,
-			Message:   msgInsufficientFunds,
-		}, client.WithAuthToken()); err != nil {
-			if merr, ok := err.(*errors.Error); ok && merr.Code == 404 {
-				return nil
-			}
-			logger.Errorf("Error blocking key %s", err)
-			return err
-		}
-		return nil
-	}
-	if _, err := b.v1Svc.UnblockKey(ctx, &v1.UnblockKeyRequest{
-		UserId:    ac.UserId,
-		Namespace: ac.Namespace,
-		KeyId:     ac.ApiKeyId,
-	}, client.WithAuthToken()); err != nil {
-		if merr, ok := err.(*errors.Error); ok && merr.Code == 404 {
-			return nil
-		}
-		logger.Errorf("Error unblocking key %s", err)
-		return err
-	}
 	return nil
 }
 
@@ -117,20 +85,6 @@ func (b *Balance) processRequest(ctx context.Context, rqe *v1.RequestEvent) erro
 	}
 	if err := events.Publish(pb.EventsTopic, &evt); err != nil {
 		logger.Errorf("Error publishing event %+v", evt)
-	}
-
-	// no more money, cut them off
-	if _, err := b.v1Svc.BlockKey(context.TODO(), &v1.BlockKeyRequest{
-		UserId:    rqe.UserId,
-		Namespace: rqe.Namespace,
-		Message:   msgInsufficientFunds,
-	}, client.WithAuthToken()); err != nil {
-		// TODO if we fail here we might double count because the message will be retried
-		if merr, ok := err.(*errors.Error); ok && merr.Code == 404 {
-			return nil
-		}
-		logger.Errorf("Error blocking key %s", err)
-		return err
 	}
 
 	return nil
@@ -198,17 +152,6 @@ func (b *Balance) processChargeSucceeded(ctx context.Context, ev *stripepb.Charg
 		logger.Errorf("Error publishing event %+v", evt)
 	}
 
-	namespace := microNamespace
-
-	// unblock key
-	if _, err := b.v1Svc.UnblockKey(ctx, &v1.UnblockKeyRequest{
-		UserId:    ev.CustomerId,
-		Namespace: namespace,
-	}, client.WithAuthToken()); err != nil {
-		// TODO if we fail here we might double count because the message will be retried
-		logger.Errorf("Error unblocking key %s", err)
-		return err
-	}
 	return nil
 }
 

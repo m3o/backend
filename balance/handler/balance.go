@@ -206,14 +206,6 @@ func (b Balance) Increment(ctx context.Context, request *pb.IncrementRequest, re
 		return nil
 	}
 
-	if _, err := b.v1Svc.UnblockKey(ctx, &v1.UnblockKeyRequest{
-		UserId:    request.CustomerId,
-		Namespace: microNamespace,
-	}, client.WithAuthToken()); err != nil {
-		logger.Errorf("Error unblocking key %s", err)
-		return err
-	}
-
 	return nil
 }
 
@@ -289,14 +281,6 @@ func (b *Balance) Decrement(ctx context.Context, request *pb.DecrementRequest, r
 	}
 	if err := events.Publish(pb.EventsTopic, &evt); err != nil {
 		logger.Errorf("Error publishing event %+v", evt)
-	}
-	if _, err := b.v1Svc.BlockKey(ctx, &v1.BlockKeyRequest{
-		UserId:    request.CustomerId,
-		Namespace: microNamespace,
-		Message:   msgInsufficientFunds,
-	}, client.WithAuthToken()); err != nil {
-		logger.Errorf("Error blocking key %s", err)
-		return err
 	}
 
 	return nil
