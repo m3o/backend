@@ -344,23 +344,6 @@ func (e *Endtoend) signup() E2EResult {
 		return e2eRes
 	}
 
-	loopStart = time.Now()
-	currBal := int64(0)
-	for time.Now().Sub(loopStart) < 1*time.Minute {
-		// check balance for intro credit
-		balRsp, err := e.balSvc.Current(context.Background(), &balancepb.CurrentRequest{CustomerId: srsp.CustomerID}, client.WithAuthToken())
-		if err == nil && balRsp.CurrentBalance > 0 {
-			currBal = balRsp.CurrentBalance
-			break
-		}
-		log.Errorf("balance response %s", err)
-	}
-	log.Infof("Balance is %d", currBal)
-	if currBal == 0 {
-		e2eRes.SignupErr = fmt.Errorf("no intro credit was applied to customer")
-		return e2eRes
-	}
-
 	// generate a key
 	req, err := http.NewRequest("POST", "https://api.m3o.com/v1/api/keys/generate", strings.NewReader(`{"description":"test key", "scopes": ["*"]}`))
 	if err != nil {
