@@ -72,7 +72,7 @@ func (p *pricingCache) init() error {
 		newMap := map[string]int64{}
 		for _, api := range rsp.Apis {
 			for k, v := range api.Pricing {
-				newMap[k] = v
+				newMap[strings.ToLower(k)] = v
 			}
 		}
 		p.Lock()
@@ -358,10 +358,12 @@ func (v1 *V1) verifyCallAllowed(ctx context.Context, apiRec *apiKeyRecord, reqUR
 		if s == "*" {
 			// they can call anything they like
 			scopeGood = true
+			break
 		}
 		if strings.HasPrefix(reqURL, fmt.Sprintf("/v1/%s/", s)) {
 			// match
 			scopeGood = true
+			break
 		}
 	}
 	if !scopeGood {
