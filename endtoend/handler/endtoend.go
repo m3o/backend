@@ -371,8 +371,16 @@ func (e *Endtoend) signup() E2EResult {
 		return e2eRes
 	}
 
-	// sleep to allow the api key to be enabled - async processing bla bla bla
-	time.Sleep(10 * time.Second)
+	// Cheat, need to add money
+	if _, err := e.balSvc.Increment(context.Background(), &balancepb.IncrementRequest{
+		CustomerId: srsp.CustomerID,
+		Delta:      1000000,
+		Visible:    false,
+		Reference:  "E2E top up",
+	}, client.WithAuthToken()); err != nil {
+		e2eRes.SetupErr = fmt.Errorf("error adding to balance, %s", err)
+		return e2eRes
+	}
 
 	// run some apis
 	pubrsp, err := e.pubSvc.List(context.Background(), &pubpb.ListRequest{}, client.WithAuthToken())
