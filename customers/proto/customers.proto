@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package customers;
-option go_package = "github.com/m3o/services/customers/proto;customers";
+option go_package = "./proto;customers";
 
 service Customers {
 	// Creates a new, unverified customer
@@ -16,6 +16,10 @@ service Customers {
 	rpc List(ListRequest) returns (ListResponse) {}
 	// Updates a customer
 	rpc Update(UpdateRequest) returns (UpdateResponse) {}
+	// Ban the customer
+	rpc Ban(BanRequest) returns (BanResponse) {}
+	// Unban the customer
+	rpc Unban(UnbanRequest) returns (UnbanResponse) {}
 }
 
 enum EventType {
@@ -24,6 +28,8 @@ enum EventType {
 	EventTypeUpdated = 2;
 	EventTypeDeleted = 3;
 	EventTypeVerified = 4;
+	EventTypeBanned = 5;
+	EventTypeUnbanned = 6;
 }
 
 message Event {
@@ -87,3 +93,17 @@ message UpdateRequest {
 }
 
 message UpdateResponse {}
+
+message BanRequest {
+	string id = 1;
+	string email = 2;
+}
+
+message BanResponse {}
+
+message UnbanRequest {
+	string id = 1;
+	string email = 2;
+}
+
+message UnbanResponse {}

@@ -24,7 +24,17 @@ func (v1 *V1) processCustomerEvents(ev mevents.Event) error {
 	switch ce.Type {
 	case cpb.EventType_EventTypeDeleted:
 		if err := v1.processCustomerDelete(ctx, ce); err != nil {
-			logger.Errorf("Error processing request event %s", err)
+			logger.Errorf("Error processing customer delete event %s", err)
+			return err
+		}
+	case cpb.EventType_EventTypeBanned:
+		if err := v1.processCustomerBan(ctx, ce); err != nil {
+			logger.Errorf("Error processing customer banned event %s", err)
+			return err
+		}
+	case cpb.EventType_EventTypeUnbanned:
+		if err := v1.processCustomerUnban(ctx, ce); err != nil {
+			logger.Errorf("Error processing customer unbanned event %s", err)
 			return err
 		}
 	default:
@@ -36,4 +46,15 @@ func (v1 *V1) processCustomerEvents(ev mevents.Event) error {
 
 func (v1 *V1) processCustomerDelete(ctx context.Context, event *cpb.Event) error {
 	return v1.deleteCustomer(ctx, event.Customer.Id)
+}
+
+func (v1 *V1) processCustomerBan(ctx context.Context, event *cpb.Event) error {
+	// disable all their keys
+	return v1.updateKeyStatus(ctx, "v1.ban", "micro", event.Customer.Id, "", keyStatusBlocked, "User has been banned")
+
+}
+
+func (v1 *V1) processCustomerUnban(ctx context.Context, event *cpb.Event) error {
+	return v1.updateKeyStatus(ctx, "v1.unban", "micro", event.Customer.Id, "", keyStatusActive, "")
+
 }
