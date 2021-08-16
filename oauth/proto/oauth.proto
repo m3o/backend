@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package oauth;
+
+option go_package = "./proto;oauth";
+
+service Oauth {
+	rpc GoogleURL(GoogleURLRequest) returns (GoogleURLResponse);
+	rpc GoogleLogin(GoogleLoginRequest) returns (LoginResponse);
+
+	rpc GithubURL(GithubURLRequest) returns (GithubURLResponse);
+	rpc GithubLogin(GithubLoginRequest) returns (LoginResponse);
+}
+
+// lifted from https://github.com/micro/go-micro/blob/master/auth/service/proto/auth.proto
+message AuthToken {
+	string access_token = 1;
+	string refresh_token = 2;
+	int64 created = 3;
+	int64 expiry = 4;
+}
+
+message GoogleURLRequest{}
+
+message GoogleURLResponse{
+	string url = 1;
+}
+
+message GoogleLoginRequest{
+	string state = 1;
+	string code = 2;
+	string errorReason = 3;
+}
+
+message LoginResponse{
+	AuthToken authToken = 1;
+	string customerID = 2;
+	string namespace = 3;
+}
+
+message GithubURLRequest{}
+
+message GithubURLResponse{
+	string url = 1;
+}
+
+message GithubLoginRequest{
+	string state = 1;
+	string code = 2;
+	string errorReason = 3;
+}
