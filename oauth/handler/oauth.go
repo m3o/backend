@@ -297,6 +297,11 @@ func (e *Oauth) registerOauthUser(ctx context.Context, rsp *oauth.LoginResponse,
 		return merrors.InternalServerError("oauth.registerOauthUser", internalErrorMsg)
 	}
 
+	if _, err := e.customerService.MarkVerified(ctx, &cproto.MarkVerifiedRequest{Email: email}, client.WithAuthToken()); err != nil {
+		logger.Errorf("Error marking customer as verified: %v", err)
+		return merrors.InternalServerError("oauth.registerOauthUser", internalErrorMsg)
+	}
+
 	secret := uuid.New().String()
 	_, err = e.auth.Generate(crsp.Customer.Id,
 		auth.WithScopes("customer"),
