@@ -504,10 +504,6 @@ func (c *Customers) Ban(ctx context.Context, request *customer.BanRequest, respo
 		return errors.BadRequest("customers.ban", "Please specify either email or ID")
 	}
 
-	if err := authorizeCall(ctx, cm.ID); err != nil {
-		return err
-	}
-
 	cm, err = updateCustomerStatusByID(cm.ID, statusBanned)
 	if err != nil {
 		return errors.InternalServerError("customers.ban", "Error banning customer %s", err)
