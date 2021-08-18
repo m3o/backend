@@ -218,18 +218,20 @@ func (v1 *V1) deleteKey(ctx context.Context, rec *apiKeyRecord) error {
 }
 
 func (v1 *V1) BlockKey(ctx context.Context, request *pb.BlockKeyRequest, response *pb.BlockKeyResponse) error {
+	if _, err := m3oauth.VerifyMicroAdmin(ctx, "v1.BlockKey"); err != nil {
+		return err
+	}
 	return v1.updateKeyStatus(ctx, "v1.BlockKey", request.Namespace, request.UserId, request.KeyId, keyStatusBlocked, request.Message)
 }
 
 func (v1 *V1) UnblockKey(ctx context.Context, request *pb.UnblockKeyRequest, response *pb.UnblockKeyResponse) error {
+	if _, err := m3oauth.VerifyMicroAdmin(ctx, "v1.UnblockKey"); err != nil {
+		return err
+	}
 	return v1.updateKeyStatus(ctx, "v1.UnblockKey", request.Namespace, request.UserId, request.KeyId, keyStatusActive, "")
 }
 
 func (v1 *V1) updateKeyStatus(ctx context.Context, methodName, ns, userID, keyID string, status keyStatus, statusMessage string) error {
-
-	if _, err := m3oauth.VerifyMicroAdmin(ctx, methodName); err != nil {
-		return err
-	}
 
 	var keys []*apiKeyRecord
 	if len(keyID) > 0 {
