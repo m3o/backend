@@ -7,8 +7,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/micro/micro/v3/util/auth/namespace"
 
 	customer "github.com/m3o/services/customers/proto"
+	apiproto "github.com/micro/micro/v3/proto/api"
 	aproto "github.com/micro/micro/v3/proto/auth"
 	"github.com/micro/micro/v3/service"
 	"github.com/micro/micro/v3/service/auth"
@@ -22,6 +24,7 @@ import (
 
 type Customers struct {
 	accountsService aproto.AccountsService
+	apiService      apiproto.ApiService
 	auth            auth.Auth
 }
 
@@ -54,6 +57,7 @@ type CustomerModel struct {
 func New(service *service.Service) *Customers {
 	c := &Customers{
 		accountsService: aproto.NewAccountsService("auth", service.Client()),
+		apiService:      apiproto.NewApiService("api", service.Client()),
 		auth:            mauth.NewAuth(),
 	}
 	return c
@@ -507,9 +511,12 @@ func (c *Customers) Ban(ctx context.Context, request *customer.BanRequest, respo
 		return err
 	}
 
-	// how do we block existing JWT tokens? maintain a blocklist which is checkked at /v1/? block at api service is the most effective
-	// TODO
-
+	// Block the user at the API to kill any existing JWTs
+	_, err = c.apiService.AddToBlockList(ctx, &apiproto.AddToBlockListRequest{Id: cm.ID, Namespace: namespace.DefaultNamespace})
+	if err != nil {
+		log.Errorf("Error blocking customer at API, %s", err)
+		return err
+	}
 	var callerID string
 	if acc, ok := auth.AccountFromContext(ctx); ok {
 		callerID = acc.ID
@@ -558,6 +565,13 @@ func (c *Customers) Unban(ctx context.Context, request *customer.UnbanRequest, r
 
 	// create a new account
 	if _, err := c.createAuthAccount(ctx, cm.ID, cm.Email); err != nil {
+		return err
+	}
+
+	// Unblock the user at the API
+	_, err = c.apiService.RemoveFromBlockList(ctx, &apiproto.RemoveFromBlockListRequest{Id: cm.ID, Namespace: namespace.DefaultNamespace})
+	if err != nil {
+		log.Errorf("Error unblocking customer at API, %s", err)
 		return err
 	}
 
