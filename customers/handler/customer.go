@@ -464,18 +464,6 @@ func (c *Customers) Ban(ctx context.Context, request *customer.BanRequest, respo
 	//- cannot create new keys
 	//- cannot sign up with the same email address (it's still in use just not usable)
 	//
-	//
-	//Admin
-	//- mark custoner as banned
-	//
-	//remove access to site
-	//- delete auth account
-	//- invalidate tokens - (how do invalidate a JWT token??)
-	//
-	//remove access to APIs
-	//- disable keys
-
-	// TODO block oauth login/register
 	var cm *CustomerModel
 	var err error
 	if len(request.Id) > 0 {
