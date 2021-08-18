@@ -167,8 +167,6 @@ func (e *Oauth) GoogleLogin(ctx context.Context, req *oauth.GoogleLoginRequest, 
 		return fmt.Errorf("code not found")
 	}
 
-	logger.Infof(code)
-
 	token, err := oauthConfGl.Exchange(oauth2.NoContext, code)
 	if err != nil {
 		return fmt.Errorf("failed exchange: %v", err)
@@ -203,6 +201,7 @@ func (e *Oauth) GoogleLogin(ctx context.Context, req *oauth.GoogleLoginRequest, 
 	}, client.WithAuthToken())
 	if err != nil && (strings.Contains(err.Error(), "notfound") || strings.Contains(err.Error(), "not found")) {
 		logger.Infof("Oauth registering %v", email)
+		rsp.IsSignup = true
 		return e.registerOauthUser(ctx, rsp, email)
 	}
 	if err != nil {
@@ -247,8 +246,6 @@ func (e *Oauth) GithubLogin(ctx context.Context, req *oauth.GithubLoginRequest, 
 		return fmt.Errorf("code not found")
 	}
 
-	logger.Infof(code)
-
 	token, err := oauthConfGithub.Exchange(oauth2.NoContext, code)
 	if err != nil {
 		return fmt.Errorf("failed exchange: %v", err)
@@ -280,6 +277,7 @@ func (e *Oauth) GithubLogin(ctx context.Context, req *oauth.GithubLoginRequest, 
 	}, client.WithAuthToken())
 	if err != nil && (strings.Contains(err.Error(), "notfound") || strings.Contains(err.Error(), "not found")) {
 		logger.Infof("Oauth registering %v", email)
+		rsp.IsSignup = true
 		return e.registerOauthUser(ctx, rsp, email)
 	}
 	if err != nil {

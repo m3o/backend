@@ -36,6 +36,7 @@ message LoginResponse{
 	AuthToken authToken = 1;
 	string customerID = 2;
 	string namespace = 3;
+	bool isSignup = 4;
 }
 
 message GithubURLRequest{}
