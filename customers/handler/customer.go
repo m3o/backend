@@ -303,6 +303,23 @@ func authorizeCall(ctx context.Context, customerID string) error {
 	return errors.Unauthorized("customers", "Unauthorized request")
 }
 
+func authorizeAdmin(ctx context.Context) error {
+	account, ok := auth.AccountFromContext(ctx)
+	if !ok {
+		return errors.Unauthorized("customers", "Unauthorized request")
+	}
+	if account.Issuer != "micro" {
+		return errors.Unauthorized("customers", "Unauthorized request")
+	}
+	if account.Type == "user" && hasScope("admin", account.Scopes) {
+		return nil
+	}
+	if account.Type == "service" {
+		return nil
+	}
+	return errors.Unauthorized("customers", "Unauthorized request")
+}
+
 func hasScope(scope string, scopes []string) bool {
 	for _, sc := range scopes {
 		if sc == scope {
@@ -464,6 +481,10 @@ func (c *Customers) Ban(ctx context.Context, request *customer.BanRequest, respo
 	//- cannot create new keys
 	//- cannot sign up with the same email address (it's still in use just not usable)
 	//
+	if err := authorizeAdmin(ctx); err != nil {
+		return err
+	}
+
 	var cm *CustomerModel
 	var err error
 	if len(request.Id) > 0 {
@@ -522,6 +543,9 @@ func (c *Customers) Ban(ctx context.Context, request *customer.BanRequest, respo
 }
 
 func (c *Customers) Unban(ctx context.Context, request *customer.UnbanRequest, response *customer.UnbanResponse) error {
+	if err := authorizeAdmin(ctx); err != nil {
+		return err
+	}
 	var cm *CustomerModel
 	var err error
 	if len(request.Id) > 0 {
@@ -539,10 +563,6 @@ func (c *Customers) Unban(ctx context.Context, request *customer.UnbanRequest, r
 		}
 	} else {
 		return errors.BadRequest("customers.ban", "Please specify either email or ID")
-	}
-
-	if err := authorizeCall(ctx, cm.ID); err != nil {
-		return err
 	}
 
 	cm, err = updateCustomerStatusByID(cm.ID, statusVerified)
