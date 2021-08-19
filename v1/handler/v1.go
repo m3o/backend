@@ -545,7 +545,7 @@ func (v1 *V1) Endpoint(ctx context.Context, stream server.Stream) (retErr error)
 		if strings.Contains(err.Error(), "panic recovered: ") {
 			// ping the alert service
 			go func() {
-				v1.alerts.ReportEvent(ctx, &alertpb.ReportEventRequest{
+				v1.alerts.ReportEvent(context.Background(), &alertpb.ReportEventRequest{
 					Event: &alertpb.Event{
 						Category: "panic",
 						Action:   reqURL,
