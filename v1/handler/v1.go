@@ -15,6 +15,7 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt"
+	alertpb "github.com/m3o/services/alert/proto/alert"
 	balance "github.com/m3o/services/balance/proto"
 	m3oauth "github.com/m3o/services/pkg/auth"
 	publicapi "github.com/m3o/services/publicapi/proto"
@@ -45,6 +46,7 @@ type V1 struct {
 	keyRecCache  *expiringLRUCache
 	pricingCache pricingCache
 	balanceCache balanceCache
+	alerts       alertpb.AlertService
 }
 
 // pricingCache caches the prices for the endpoints so we don't hit the publicapi for every call
@@ -191,6 +193,7 @@ func NewHandler(srv *service.Service) *V1 {
 		balanceCache: balanceCache{
 			balsvc: balance.NewBalanceService("balance", srv.Client()),
 		},
+		alerts: alertpb.NewAlertService("alert", srv.Client()),
 	}
 	go v1.consumeEvents()
 	return v1
@@ -538,6 +541,19 @@ func (v1 *V1) Endpoint(ctx context.Context, stream server.Stream) (retErr error)
 	var response json.RawMessage
 	// make the call
 	if err := client.Call(ctx, request, &response); err != nil {
+		if strings.Contains(err.Error(), "panic recovered: ") {
+			// ping the alert service
+			go func() {
+				v1.alerts.ReportEvent(ctx, &alertpb.ReportEventRequest{
+					Event: &alertpb.Event{
+						Category: "panic",
+						Action:   reqURL,
+						Value:    1,
+						Metadata: map[string]string{"error": err.Error()},
+						UserID:   apiRec.UserID,
+					}})
+			}()
+		}
 		return err
 	}
 	go publishEndpointEvent(reqURL, service, endpoint, apiRec)
