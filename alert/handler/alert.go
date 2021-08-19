@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	alert "github.com/m3o/services/alert/proto/alert"
 	"github.com/micro/micro/v3/service/config"
@@ -116,10 +115,7 @@ func (e *Alert) ReportEvent(ctx context.Context, req *alert.ReportEventRequest, 
 			return err
 		}
 		msg := fmt.Sprintf("Event received:\n```\n%v\n```", string(jsond))
-		log.Infof("Sending to slack")
-		start := time.Now()
 		_, _, _, err = e.slackClient.SendMessage(e.config.Slack.Channel, slack.MsgOptionUsername(e.config.Slack.Username), slack.MsgOptionText(msg, false))
-		log.Infof("Finished %s", time.Since(start))
 		if err != nil {
 			log.Errorf("Error sending to Slack %s", err)
 			return err
