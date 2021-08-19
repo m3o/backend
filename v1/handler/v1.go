@@ -541,7 +541,6 @@ func (v1 *V1) Endpoint(ctx context.Context, stream server.Stream) (retErr error)
 	var response json.RawMessage
 	// make the call
 	if err := client.Call(ctx, request, &response); err != nil {
-		log.Errorf("ERROR CAUGHT %s", err.Error())
 		if strings.Contains(err.Error(), "panic recovered: ") {
 			// ping the alert service
 			go func() {
