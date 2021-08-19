@@ -543,10 +543,9 @@ func (v1 *V1) Endpoint(ctx context.Context, stream server.Stream) (retErr error)
 	if err := client.Call(ctx, request, &response); err != nil {
 
 		if strings.Contains(err.Error(), "panic recovered: ") {
-			log.Errorf("Reporting panic")
 			// ping the alert service
 			go func() {
-				_, rerr := v1.alerts.ReportEvent(ctx, &alertpb.ReportEventRequest{
+				v1.alerts.ReportEvent(ctx, &alertpb.ReportEventRequest{
 					Event: &alertpb.Event{
 						Category: "panic",
 						Action:   reqURL,
@@ -554,9 +553,7 @@ func (v1 *V1) Endpoint(ctx context.Context, stream server.Stream) (retErr error)
 						Metadata: map[string]string{"error": err.Error()},
 						UserID:   apiRec.UserID,
 					}}, client.WithAuthToken())
-				if rerr != nil {
-					log.Errorf("Error reporting panic %s", rerr)
-				}
+
 			}()
 		}
 		return err
