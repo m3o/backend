@@ -552,7 +552,7 @@ func (v1 *V1) Endpoint(ctx context.Context, stream server.Stream) (retErr error)
 						Value:    1,
 						Metadata: map[string]string{"error": err.Error()},
 						UserID:   apiRec.UserID,
-					}})
+					}}, client.WithAuthToken())
 			}()
 		}
 		return err
