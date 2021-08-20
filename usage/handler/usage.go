@@ -393,6 +393,7 @@ func (p *UsageSvc) ListEvents(ctx context.Context, request *pb.ListEventsRequest
 	}
 	resp, err := p.dbService.Read(ctx, &dbproto.ReadRequest{
 		Table:   request.Table,
+		Query:   "createdAt > 0",
 		OrderBy: "createdAt",
 		Order:   "desc",
 	})
