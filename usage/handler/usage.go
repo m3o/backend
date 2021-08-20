@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/google/uuid"
 	m3oauth "github.com/m3o/services/pkg/auth"
 	pb "github.com/m3o/services/usage/proto"
 	"github.com/micro/micro/v3/service"
@@ -19,6 +20,7 @@ import (
 	"github.com/micro/micro/v3/service/errors"
 	log "github.com/micro/micro/v3/service/logger"
 	"github.com/micro/micro/v3/service/store"
+	dbproto "github.com/micro/services/db/proto"
 )
 
 const (
@@ -117,10 +119,11 @@ func (c *counter) listForUser(userID string, t time.Time) ([]listEntry, error) {
 }
 
 type UsageSvc struct {
-	c *counter
+	c         *counter
+	dbService dbproto.DbService
 }
 
-func NewHandler(svc *service.Service) *UsageSvc {
+func NewHandler(svc *service.Service, dbService dbproto.DbService) *UsageSvc {
 	redisConfig := struct {
 		Address  string
 		User     string
@@ -145,7 +148,8 @@ func NewHandler(svc *service.Service) *UsageSvc {
 		},
 	})
 	p := &UsageSvc{
-		c: &counter{redisClient: rc},
+		c:         &counter{redisClient: rc},
+		dbService: dbService,
 	}
 	go p.consumeEvents()
 	return p
@@ -354,6 +358,46 @@ func (p *UsageSvc) DeleteCustomer(ctx context.Context, request *pb.DeleteCustome
 	if err := p.deleteUser(ctx, request.Id); err != nil {
 		log.Errorf("Error deleting customer %s", err)
 		return err
+	}
+	return nil
+}
+
+func (p *UsageSvc) SaveEvent(ctx context.Context, request *pb.SaveEventRequest, response *pb.SaveEventResponse) error {
+	rec := request.Event.Record.AsMap()
+	if request.Event.Id == "" {
+		request.Event.Id = uuid.New().String()
+	}
+	rec["id"] = request.Event.Id
+	rec["createdAt"] = time.Now().Unix()
+	bs, err := json.Marshal(rec)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(bs, request.Event)
+	if err != nil {
+		return err
+	}
+	_, err = p.dbService.Create(ctx, &dbproto.CreateRequest{
+		Table:  request.Event.Table,
+		Record: request.Event.Record,
+	})
+	return err
+}
+
+func (p *UsageSvc) ListEvents(ctx context.Context, request *pb.ListEventsRequest, response *pb.ListEventsResponse) error {
+	resp, err := p.dbService.Read(ctx, &dbproto.ReadRequest{
+		Table:   request.Table,
+		OrderBy: "createdAt",
+		Order:   "desc",
+	})
+	if err != nil {
+		return err
+	}
+	for _, v := range resp.Records {
+		response.Events = append(response.Events, &pb.Event{
+			Table:  request.Table,
+			Record: v,
+		})
 	}
 	return nil
 }

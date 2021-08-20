@@ -8,6 +8,7 @@ import (
 
 	"github.com/micro/micro/v3/service"
 	"github.com/micro/micro/v3/service/logger"
+	dbproto "github.com/micro/services/db/proto"
 )
 
 func main() {
@@ -17,7 +18,7 @@ func main() {
 		service.Version("latest"),
 	)
 
-	p := handler.NewHandler(srv)
+	p := handler.NewHandler(srv, dbproto.NewDbService("db", srv.Client()))
 	// Register handler
 	pb.RegisterUsageHandler(srv.Server(), p)
 

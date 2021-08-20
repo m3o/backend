@@ -1,4 +1,5 @@
 syntax = "proto3";
+import "google/protobuf/struct.proto";
 
 package usage;
 
@@ -8,6 +9,8 @@ service Usage {
 	rpc Read(ReadRequest) returns (ReadResponse) {}
 	rpc Sweep(SweepRequest) returns (SweepResponse) {}
 	rpc DeleteCustomer(DeleteCustomerRequest) returns (DeleteCustomerResponse) {}
+	rpc SaveEvent(SaveEventRequest) returns (SaveEventResponse) {}
+	rpc ListEvents(ListEventsRequest) returns (ListEventsResponse) {}
 }
 
 message ReadRequest {
@@ -37,3 +40,27 @@ message DeleteCustomerRequest {
 }
 
 message DeleteCustomerResponse {}
+
+message Event {
+	string id = 1;
+	string table = 2;
+	int64 created = 3;
+	google.protobuf.Struct record = 4;
+}
+
+// Event is anything that we might want to record. "api-calls", "api-visits", etc.
+// "Table" can be anything.
+message SaveEventRequest {
+	Event event = 1;
+}
+
+message SaveEventResponse {}
+
+// Will return the last 20 events. No paging currently
+message ListEventsRequest{
+	string table = 1;
+}
+
+message ListEventsResponse{
+	repeated Event events = 1;
+}

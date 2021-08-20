@@ -6,6 +6,7 @@ package usage
 import (
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
+	_ "github.com/golang/protobuf/ptypes/struct"
 	math "math"
 )
 
@@ -45,6 +46,8 @@ type UsageService interface {
 	Read(ctx context.Context, in *ReadRequest, opts ...client.CallOption) (*ReadResponse, error)
 	Sweep(ctx context.Context, in *SweepRequest, opts ...client.CallOption) (*SweepResponse, error)
 	DeleteCustomer(ctx context.Context, in *DeleteCustomerRequest, opts ...client.CallOption) (*DeleteCustomerResponse, error)
+	SaveEvent(ctx context.Context, in *SaveEventRequest, opts ...client.CallOption) (*SaveEventResponse, error)
+	ListEvents(ctx context.Context, in *ListEventsRequest, opts ...client.CallOption) (*ListEventsResponse, error)
 }
 
 type usageService struct {
@@ -89,12 +92,34 @@ func (c *usageService) DeleteCustomer(ctx context.Context, in *DeleteCustomerReq
 	return out, nil
 }
 
+func (c *usageService) SaveEvent(ctx context.Context, in *SaveEventRequest, opts ...client.CallOption) (*SaveEventResponse, error) {
+	req := c.c.NewRequest(c.name, "Usage.SaveEvent", in)
+	out := new(SaveEventResponse)
+	err := c.c.Call(ctx, req, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *usageService) ListEvents(ctx context.Context, in *ListEventsRequest, opts ...client.CallOption) (*ListEventsResponse, error) {
+	req := c.c.NewRequest(c.name, "Usage.ListEvents", in)
+	out := new(ListEventsResponse)
+	err := c.c.Call(ctx, req, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for Usage service
 
 type UsageHandler interface {
 	Read(context.Context, *ReadRequest, *ReadResponse) error
 	Sweep(context.Context, *SweepRequest, *SweepResponse) error
 	DeleteCustomer(context.Context, *DeleteCustomerRequest, *DeleteCustomerResponse) error
+	SaveEvent(context.Context, *SaveEventRequest, *SaveEventResponse) error
+	ListEvents(context.Context, *ListEventsRequest, *ListEventsResponse) error
 }
 
 func RegisterUsageHandler(s server.Server, hdlr UsageHandler, opts ...server.HandlerOption) error {
@@ -102,6 +127,8 @@ func RegisterUsageHandler(s server.Server, hdlr UsageHandler, opts ...server.Han
 		Read(ctx context.Context, in *ReadRequest, out *ReadResponse) error
 		Sweep(ctx context.Context, in *SweepRequest, out *SweepResponse) error
 		DeleteCustomer(ctx context.Context, in *DeleteCustomerRequest, out *DeleteCustomerResponse) error
+		SaveEvent(ctx context.Context, in *SaveEventRequest, out *SaveEventResponse) error
+		ListEvents(ctx context.Context, in *ListEventsRequest, out *ListEventsResponse) error
 	}
 	type Usage struct {
 		usage
@@ -124,4 +151,12 @@ func (h *usageHandler) Sweep(ctx context.Context, in *SweepRequest, out *SweepRe
 
 func (h *usageHandler) DeleteCustomer(ctx context.Context, in *DeleteCustomerRequest, out *DeleteCustomerResponse) error {
 	return h.UsageHandler.DeleteCustomer(ctx, in, out)
+}
+
+func (h *usageHandler) SaveEvent(ctx context.Context, in *SaveEventRequest, out *SaveEventResponse) error {
+	return h.UsageHandler.SaveEvent(ctx, in, out)
+}
+
+func (h *usageHandler) ListEvents(ctx context.Context, in *ListEventsRequest, out *ListEventsResponse) error {
+	return h.UsageHandler.ListEvents(ctx, in, out)
 }
