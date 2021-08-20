@@ -376,7 +376,7 @@ func (p *UsageSvc) SaveEvent(ctx context.Context, request *pb.SaveEventRequest, 
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(bs, request.Event)
+	err = json.Unmarshal(bs, request.Event.Record)
 	if err != nil {
 		return err
 	}
@@ -388,6 +388,9 @@ func (p *UsageSvc) SaveEvent(ctx context.Context, request *pb.SaveEventRequest, 
 }
 
 func (p *UsageSvc) ListEvents(ctx context.Context, request *pb.ListEventsRequest, response *pb.ListEventsResponse) error {
+	if request.Table == "" {
+		return fmt.Errorf("no table provided")
+	}
 	resp, err := p.dbService.Read(ctx, &dbproto.ReadRequest{
 		Table:   request.Table,
 		OrderBy: "createdAt",
