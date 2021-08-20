@@ -363,6 +363,9 @@ func (p *UsageSvc) DeleteCustomer(ctx context.Context, request *pb.DeleteCustome
 }
 
 func (p *UsageSvc) SaveEvent(ctx context.Context, request *pb.SaveEventRequest, response *pb.SaveEventResponse) error {
+	if request.Event == nil {
+		return fmt.Errorf("event not provided")
+	}
 	rec := request.Event.Record.AsMap()
 	if request.Event.Id == "" {
 		request.Event.Id = uuid.New().String()
