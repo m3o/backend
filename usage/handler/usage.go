@@ -366,6 +366,9 @@ func (p *UsageSvc) SaveEvent(ctx context.Context, request *pb.SaveEventRequest, 
 	if request.Event == nil {
 		return fmt.Errorf("event not provided")
 	}
+	if request.Event.Table == "" {
+		return fmt.Errorf("table not provided")
+	}
 	rec := request.Event.Record.AsMap()
 	if request.Event.Id == "" {
 		request.Event.Id = uuid.New().String()
