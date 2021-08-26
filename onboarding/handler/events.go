@@ -1,16 +1,11 @@
 package handler
 
 import (
-	"encoding/json"
 	"log"
 
 	balance "github.com/m3o/services/balance/proto"
-	onboarding "github.com/m3o/services/onboarding/proto"
-	pevents "github.com/m3o/services/pkg/events"
 	"github.com/micro/micro/v3/service"
 	"github.com/micro/micro/v3/service/config"
-	mevents "github.com/micro/micro/v3/service/events"
-	logger "github.com/micro/micro/v3/service/logger"
 )
 
 type Onboarding struct {
@@ -36,33 +31,5 @@ func NewOnboarding(svc *service.Service) *Onboarding {
 		promoCredit:  cfg.PromoCredit,
 		promoMessage: cfg.PromoMessage,
 	}
-	o.consumeEvents()
 	return o
-}
-
-func (o *Onboarding) consumeEvents() {
-	go pevents.ProcessTopic(topic, "onboarding", o.processOnboardingEvents)
-}
-
-func (o *Onboarding) processOnboardingEvents(ev mevents.Event) error {
-	var ve onboarding.Event
-	if err := json.Unmarshal(ev.Payload, &ve); err != nil {
-		logger.Errorf("Error unmarshalling onboarding event: $s", err)
-		return nil
-	}
-	switch ve.Type {
-	case "newSignup": // TODO remove me
-		if err := o.processSignup(ve.NewSignup); err != nil {
-			logger.Errorf("Error processing signup event %s", err)
-			return err
-		}
-	default:
-		logger.Infof("Skipping event %+v", ve)
-	}
-	return nil
-
-}
-
-func (o *Onboarding) processSignup(ev *onboarding.NewSignupEvent) error {
-	return nil
 }

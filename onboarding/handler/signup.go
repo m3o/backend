@@ -29,7 +29,7 @@ import (
 const (
 	microNamespace   = "micro"
 	internalErrorMsg = "An error occurred during onboarding. Contact #m3o-support at slack.m3o.com if the issue persists"
-	topic            = "onboarding"
+	topic            = "customers"
 )
 
 const (

@@ -10,6 +10,7 @@ import (
 	"github.com/micro/micro/v3/util/auth/namespace"
 
 	customer "github.com/m3o/services/customers/proto"
+	eventspb "github.com/m3o/services/pkg/events/proto/customers"
 	apiproto "github.com/micro/micro/v3/proto/api"
 	aproto "github.com/micro/micro/v3/proto/auth"
 	"github.com/micro/micro/v3/service"
@@ -73,6 +74,16 @@ func objToProto(cust *CustomerModel) *customer.Customer {
 	}
 }
 
+func objToEvent(cust *CustomerModel) *eventspb.Customer {
+	return &eventspb.Customer{
+		Id:      cust.ID,
+		Status:  cust.Status,
+		Created: cust.Created,
+		Email:   cust.Email,
+		Updated: cust.Updated,
+	}
+}
+
 func (c *Customers) Create(ctx context.Context, request *customer.CreateRequest, response *customer.CreateResponse) error {
 	if err := authorizeCall(ctx, ""); err != nil {
 		return err
@@ -117,11 +128,14 @@ func (c *Customers) Create(ctx context.Context, request *customer.CreateRequest,
 	if acc, ok := auth.AccountFromContext(ctx); ok {
 		callerID = acc.ID
 	}
-	ev := &customer.Event{
-		Type:     customer.EventType_EventTypeCreated,
-		Customer: response.Customer,
+
+	ev := &eventspb.Event{
+		Type:     eventspb.EventType_EventTypeCreated,
 		CallerId: callerID,
+		Created:  &eventspb.Created{},
+		Customer: objToEvent(cust),
 	}
+
 	if err := mevents.Publish(customer.EventsTopic, ev); err != nil {
 		log.Errorf("Error publishing event %+v", ev)
 	}
@@ -158,9 +172,9 @@ func (c *Customers) MarkVerified(ctx context.Context, request *customer.MarkVeri
 	if acc, ok := auth.AccountFromContext(ctx); ok {
 		callerID = acc.ID
 	}
-	ev := &customer.Event{
-		Type:     customer.EventType_EventTypeVerified,
-		Customer: objToProto(cus),
+	ev := &eventspb.Event{
+		Type:     eventspb.EventType_EventTypeVerified,
+		Customer: objToEvent(cus),
 		CallerId: callerID,
 	}
 	if err := mevents.Publish(customer.EventsTopic, ev); err != nil {
@@ -359,9 +373,9 @@ func (c *Customers) deleteCustomer(ctx context.Context, customerID string, force
 	if acc, ok := auth.AccountFromContext(ctx); ok {
 		callerID = acc.ID
 	}
-	ev := &customer.Event{
-		Type:     customer.EventType_EventTypeDeleted,
-		Customer: objToProto(cust),
+	ev := &eventspb.Event{
+		Type:     eventspb.EventType_EventTypeDeleted,
+		Customer: objToEvent(cust),
 		CallerId: callerID,
 	}
 	if err := mevents.Publish(customer.EventsTopic, ev); err != nil {
@@ -463,9 +477,9 @@ func (c *Customers) Update(ctx context.Context, request *customer.UpdateRequest,
 	if acc, ok := auth.AccountFromContext(ctx); ok {
 		callerID = acc.ID
 	}
-	ev := &customer.Event{
-		Type:     customer.EventType_EventTypeUpdated,
-		Customer: objToProto(cust),
+	ev := &eventspb.Event{
+		Type:     eventspb.EventType_EventTypeUpdated,
+		Customer: objToEvent(cust),
 		CallerId: callerID,
 	}
 	if err := mevents.Publish(customer.EventsTopic, ev); err != nil {
@@ -526,9 +540,9 @@ func (c *Customers) Ban(ctx context.Context, request *customer.BanRequest, respo
 	if acc, ok := auth.AccountFromContext(ctx); ok {
 		callerID = acc.ID
 	}
-	ev := &customer.Event{
-		Type:     customer.EventType_EventTypeBanned,
-		Customer: objToProto(cm),
+	ev := &eventspb.Event{
+		Type:     eventspb.EventType_EventTypeBanned,
+		Customer: objToEvent(cm),
 		CallerId: callerID,
 	}
 	if err := mevents.Publish(customer.EventsTopic, ev); err != nil {
@@ -583,9 +597,9 @@ func (c *Customers) Unban(ctx context.Context, request *customer.UnbanRequest, r
 	if acc, ok := auth.AccountFromContext(ctx); ok {
 		callerID = acc.ID
 	}
-	ev := &customer.Event{
-		Type:     customer.EventType_EventTypeUnbanned,
-		Customer: objToProto(cm),
+	ev := &eventspb.Event{
+		Type:     eventspb.EventType_EventTypeUnbanned,
+		Customer: objToEvent(cm),
 		CallerId: callerID,
 	}
 	if err := mevents.Publish(customer.EventsTopic, ev); err != nil {

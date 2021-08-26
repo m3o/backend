@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+package events;
+
+option go_package = "./proto;events";
+
+
+enum EventType {
+  EventTypeUnknown = 0;
+  EventTypeCreated = 1;
+  EventTypeUpdated = 2;
+  EventTypeDeleted = 3;
+  EventTypeVerified = 4;
+  EventTypeBanned = 5;
+  EventTypeUnbanned = 6;
+  EventTypeSignup = 7;
+  EventTypeGemerateKey = 8;
+  EventTypeDeleteKey = 9;
+  EventTypeTopUp = 10;
+  EventTypeAddPaymentMethod = 11;
+  EventTypeDeletePaymentMethod = 12;
+  EventTypePasswordReset = 13;
+  EventTypeLogin = 14;
+  EventTypeLogout = 15;
+}
+
+// Event holds the customer object plus event specific data in the respective field
+message Event {
+  EventType type = 1;
+  Customer customer = 2;
+  string caller_id = 3;
+
+  // event specific data
+
+  Created created = 4;
+  Updated updated = 5;
+  Deleted deleted = 6;
+  Verified verified = 7;
+  Banned banned = 8;
+  Unbanned unbanned = 9;
+  Signup signup = 10;
+  GenerateKey generate_key = 11;
+  DeleteKey delete_key = 12;
+  TopUp top_up = 13;
+  AddPaymentMethod add_payment_method = 14;
+  DeletePaymentMethod delete_payment_method = 15;
+  PasswordReset password_reset = 16;
+  Login login = 17;
+  Logout logout = 18;
+}
+
+message Customer {
+  string id = 1;
+  string status = 2; // awaiting_verification, verified, active, inactive
+  int64 created = 3;
+  string email = 6;
+  int64 updated = 7;
+}
+
+
+message Created {
+}
+
+message Updated {
+}
+
+message Deleted {
+}
+
+message Verified {
+}
+
+message Banned {
+}
+
+message Unbanned {
+}
+
+message Signup {
+  // github/google/email
+  string method = 1;
+}
+
+message GenerateKey {}
+
+message DeleteKey {}
+
+message TopUp {
+  int64 amount = 1;
+}
+
+message AddPaymentMethod {}
+
+message DeletePaymentMethod {}
+
+message PasswordReset {}
+
+message Login {
+  // github/google/email
+  string method = 1;
+}
+
+message Logout {}
