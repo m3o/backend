@@ -12,17 +12,6 @@ enum EventType {
 message Event {
   Request request = 1;
   EventType type = 3;
-  APIEnable api_enable = 5;
-  APIDisable api_disable = 6;
-}
-
-
-message APIEnable {
-  string name = 1;
-}
-
-message APIDisable {
-  string name = 1;
 }
 
 message Request {
@@ -34,15 +23,4 @@ message Request {
   string endpoint_name = 6;
 }
 
-message APIKeyRevokeEvent {
-  string user_id = 1;
-  string namespace = 2;
-  string api_key_id = 3;
-}
 
-message BlockKeyRequest {
-  string user_id = 1;
-  string namespace = 2;
-  string key_id = 3;
-  string message = 4;
-}

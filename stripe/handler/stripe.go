@@ -8,6 +8,7 @@ import (
 
 	custpb "github.com/m3o/services/customers/proto"
 	m3oauth "github.com/m3o/services/pkg/auth"
+	stripeevents "github.com/m3o/services/pkg/events/proto/stripe"
 	stripepb "github.com/m3o/services/stripe/proto"
 	api "github.com/micro/micro/v3/proto/api"
 	"github.com/micro/micro/v3/service"
@@ -198,9 +199,9 @@ func (s *Stripe) chargeSucceeded(ctx context.Context, event *stripe.Event) error
 		return err
 	}
 
-	if err := events.Publish("stripe", &stripepb.Event{
-		Type: "ChargeSucceeded",
-		ChargeSucceeded: &stripepb.ChargeSuceededEvent{
+	if err := events.Publish("stripe", &stripeevents.Event{
+		Type: stripeevents.EventType_EventTypeChargeSucceeded,
+		ChargeSucceeded: &stripeevents.ChargeSuceeded{
 			CustomerId: cm.ID,
 			Currency:   string(ch.Currency), // TOOD
 			Amount:     ch.Amount,

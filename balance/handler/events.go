@@ -7,6 +7,7 @@ import (
 	pevents "github.com/m3o/services/pkg/events"
 	eventspb "github.com/m3o/services/pkg/events/proto/customers"
 	"github.com/m3o/services/pkg/events/proto/requests"
+	stripeevents "github.com/m3o/services/pkg/events/proto/stripe"
 	stripepb "github.com/m3o/services/stripe/proto"
 	"github.com/micro/micro/v3/service/client"
 	"github.com/micro/micro/v3/service/events"
@@ -83,14 +84,14 @@ func (b *Balance) processRequest(ctx context.Context, rqe *requests.Request) err
 
 func (b *Balance) processStripeEvents(ev mevents.Event) error {
 	ctx := context.Background()
-	ve := &stripepb.Event{}
+	ve := &stripeevents.Event{}
 	logger.Infof("Processing event %+v", ev)
 	if err := json.Unmarshal(ev.Payload, ve); err != nil {
 		logger.Errorf("Error unmarshalling stripe event: $s", err)
 		return nil
 	}
 	switch ve.Type {
-	case "ChargeSucceeded":
+	case stripeevents.EventType_EventTypeChargeSucceeded:
 		if err := b.processChargeSucceeded(ctx, ve.ChargeSucceeded); err != nil {
 			logger.Errorf("Error processing charge succeeded event %s", err)
 			return err
@@ -103,17 +104,10 @@ func (b *Balance) processStripeEvents(ev mevents.Event) error {
 
 }
 
-func (b *Balance) processChargeSucceeded(ctx context.Context, ev *stripepb.ChargeSuceededEvent) error {
-	// TODO if we return error and we have already incremented the counter then we double count so make this idempotent
+func (b *Balance) processChargeSucceeded(ctx context.Context, ev *stripeevents.ChargeSuceeded) error {
 	// safety first
 	if ev == nil || ev.Amount == 0 {
 		return nil
-	}
-	// add to balance
-	// stripe event is in cents, multiply by 10000 to get the fraction that balance represents
-	_, err := b.c.incr(ctx, ev.CustomerId, "$balance$", ev.Amount*10000)
-	if err != nil {
-		logger.Errorf("Error incrementing balance %s", err)
 	}
 
 	srsp, err := b.stripeSvc.GetPayment(ctx, &stripepb.GetPaymentRequest{Id: ev.ChargeId}, client.WithAuthToken())
@@ -126,6 +120,13 @@ func (b *Balance) processChargeSucceeded(ctx context.Context, ev *stripepb.Charg
 	})
 	if err != nil {
 		return err
+	}
+
+	// add to balance. We do this LAST in case we error doing anything else and cause a double count
+	// stripe event is in cents, multiply by 10000 to get the fraction that balance represents
+	_, err = b.c.incr(ctx, ev.CustomerId, "$balance$", ev.Amount*10000)
+	if err != nil {
+		logger.Errorf("Error incrementing balance %s", err)
 	}
 
 	evt := &eventspb.Event{
