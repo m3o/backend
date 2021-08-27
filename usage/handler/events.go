@@ -8,25 +8,25 @@ import (
 
 	pevents "github.com/m3o/services/pkg/events"
 	eventspb "github.com/m3o/services/pkg/events/proto/customers"
-	v1 "github.com/m3o/services/v1/proto"
+	"github.com/m3o/services/pkg/events/proto/requests"
 	mevents "github.com/micro/micro/v3/service/events"
 	"github.com/micro/micro/v3/service/logger"
 )
 
 func (p *UsageSvc) consumeEvents() {
-	go pevents.ProcessTopic("v1api", "usage", p.processV1apiEvents)
+	go pevents.ProcessTopic("requests", "usage", p.processV1apiEvents)
 	go pevents.ProcessTopic("customers", "usage", p.processCustomerEvents)
 }
 
 func (p *UsageSvc) processV1apiEvents(ev mevents.Event) error {
 	ctx := context.Background()
-	ve := &v1.Event{}
+	ve := &requests.Event{}
 	if err := json.Unmarshal(ev.Payload, ve); err != nil {
 		logger.Errorf("Error unmarshalling v1 event: $s", err)
 		return nil
 	}
 	switch ve.Type {
-	case "Request":
+	case requests.EventType_EventTypeRequest:
 		if err := p.processRequest(ctx, ve.Request, ev.Timestamp); err != nil {
 			logger.Errorf("Error processing request event %s", err)
 			return err
@@ -38,7 +38,7 @@ func (p *UsageSvc) processV1apiEvents(ev mevents.Event) error {
 
 }
 
-func (p *UsageSvc) processRequest(ctx context.Context, event *v1.RequestEvent, t time.Time) error {
+func (p *UsageSvc) processRequest(ctx context.Context, event *requests.Request, t time.Time) error {
 	_, err := p.c.incr(ctx, event.UserId, event.ApiName, 1, t)
 	p.c.incr(ctx, event.UserId, fmt.Sprintf("%s$%s", event.ApiName, event.EndpointName), 1, t)
 	// incr total counts for the API and individual endpoint
