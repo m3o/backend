@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package requests;
+package requestsevents;
 
 option go_package = "./proto;requests";
 

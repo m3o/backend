@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package customers;
+package customersevents;
 
 option go_package = "./proto;customers";
 

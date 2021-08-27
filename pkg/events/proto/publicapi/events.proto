@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package publicapi;
+package publicapievents;
 
 option go_package = "./proto;publicapi";
 
