@@ -26,6 +26,7 @@ enum EventType {
   EventTypeUnblockKey = 17;
   EventTypeBalanceIncrement = 18;
   EventTypeBalanceZero = 19;
+  EventTypeBalanceDecrement = 20;
 }
 
 // Event holds the customer object plus event specific data in the respective field
@@ -53,6 +54,7 @@ message Event {
   Logout logout = 18;
   BlockKey block_key = 19;
   UnblockKey unblock_key = 20;
+  BalanceDecrement balance_decrement = 21;
 }
 
 message Customer {
@@ -99,6 +101,7 @@ message DeleteKey {
 message BalanceIncrement {
   int64 amount = 1;
   string type = 2; // topup, referral, etc
+  string reference = 3;
 }
 
 message AddPaymentMethod {
@@ -124,4 +127,10 @@ message BlockKey {
 
 message UnblockKey {
   string id = 1;
+}
+
+message BalanceDecrement {
+  int64 amount = 1;
+  string type = 2;
+  string reference = 3;
 }

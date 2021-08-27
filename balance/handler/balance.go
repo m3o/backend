@@ -14,6 +14,7 @@ import (
 	pb "github.com/m3o/services/balance/proto"
 	ns "github.com/m3o/services/namespaces/proto"
 	m3oauth "github.com/m3o/services/pkg/auth"
+	eventspb "github.com/m3o/services/pkg/events/proto/customers"
 	publicapi "github.com/m3o/services/publicapi/proto"
 	stripe "github.com/m3o/services/stripe/proto"
 	v1 "github.com/m3o/services/v1/proto"
@@ -187,18 +188,16 @@ func (b Balance) Increment(ctx context.Context, request *pb.IncrementRequest, re
 		return err
 	}
 
-	evt := pb.Event{
-		Type: pb.EventType_EventTypeIncrement,
-		Adjustment: &pb.Adjustment{
-			Id:        adj.ID,
-			Created:   adj.Created.Unix(),
-			Delta:     adj.Amount,
+	evt := &eventspb.Event{
+		Type:     eventspb.EventType_EventTypeBalanceIncrement,
+		Customer: &eventspb.Customer{Id: adj.CustomerID},
+		BalanceIncrement: &eventspb.BalanceIncrement{
+			Amount:    adj.Amount,
+			Type:      "system",
 			Reference: adj.Reference,
-			Meta:      adj.Meta,
 		},
-		CustomerId: adj.CustomerID,
 	}
-	if err := events.Publish(pb.EventsTopic, &evt); err != nil {
+	if err := events.Publish("customers", evt); err != nil {
 		logger.Errorf("Error publishing event %+v", evt)
 	}
 
@@ -257,29 +256,27 @@ func (b *Balance) Decrement(ctx context.Context, request *pb.DecrementRequest, r
 		return err
 	}
 
-	evt := pb.Event{
-		Type: pb.EventType_EventTypeDecrement,
-		Adjustment: &pb.Adjustment{
-			Id:        adj.ID,
-			Created:   adj.Created.Unix(),
-			Delta:     adj.Amount,
+	evt := &eventspb.Event{
+		Type: eventspb.EventType_EventTypeBalanceDecrement,
+		BalanceDecrement: &eventspb.BalanceDecrement{
+			Amount:    adj.Amount,
+			Type:      "system",
 			Reference: adj.Reference,
-			Meta:      adj.Meta,
 		},
-		CustomerId: adj.CustomerID,
+		Customer: &eventspb.Customer{Id: adj.CustomerID},
 	}
-	if err := events.Publish(pb.EventsTopic, &evt); err != nil {
+	if err := events.Publish("customers", evt); err != nil {
 		logger.Errorf("Error publishing event %+v", evt)
 	}
 
 	if currBal > 0 {
 		return nil
 	}
-	evt = pb.Event{
-		Type:       pb.EventType_EventTypeZeroBalance,
-		CustomerId: adj.CustomerID,
+	evt = &eventspb.Event{
+		Type:     eventspb.EventType_EventTypeBalanceZero,
+		Customer: &eventspb.Customer{Id: adj.CustomerID},
 	}
-	if err := events.Publish(pb.EventsTopic, &evt); err != nil {
+	if err := events.Publish("customers", &evt); err != nil {
 		logger.Errorf("Error publishing event %+v", evt)
 	}
 

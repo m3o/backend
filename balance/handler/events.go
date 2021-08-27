@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 
-	pb "github.com/m3o/services/balance/proto"
 	pevents "github.com/m3o/services/pkg/events"
 	eventspb "github.com/m3o/services/pkg/events/proto/customers"
 	"github.com/m3o/services/pkg/events/proto/requests"
@@ -75,7 +74,7 @@ func (b *Balance) processRequest(ctx context.Context, rqe *requests.Request) err
 			Id: rqe.UserId,
 		},
 	}
-	if err := events.Publish(pb.EventsTopic, evt); err != nil {
+	if err := events.Publish("customers", evt); err != nil {
 		logger.Errorf("Error publishing event %+v", evt)
 	}
 
@@ -132,8 +131,9 @@ func (b *Balance) processChargeSucceeded(ctx context.Context, ev *stripepb.Charg
 	evt := &eventspb.Event{
 		Type: eventspb.EventType_EventTypeBalanceIncrement,
 		BalanceIncrement: &eventspb.BalanceIncrement{
-			Amount: adj.Amount,
-			Type:   "topup",
+			Amount:    adj.Amount,
+			Type:      "topup",
+			Reference: adj.Reference,
 		},
 		Customer: &eventspb.Customer{
 			Id: adj.CustomerID,
