@@ -48,21 +48,6 @@ message ListResponse {
 	repeated PublicAPI apis = 1;
 }
 
-message Event {
-	string type = 1;
-	APIPublishEvent api_publish = 2;
-	APIRemoveEvent api_remove = 3;
-}
-
-
-message APIPublishEvent {
-	string name = 1;
-}
-
-message APIRemoveEvent {
-	string name = 1;
-}
-
 
 message RemoveRequest {
 	string id = 1;

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	cpb "github.com/m3o/services/customers/proto"
 	pevents "github.com/m3o/services/pkg/events"
+	eventspb "github.com/m3o/services/pkg/events/proto/customers"
 	v1 "github.com/m3o/services/v1/proto"
 	mevents "github.com/micro/micro/v3/service/events"
 	"github.com/micro/micro/v3/service/logger"
@@ -49,13 +49,13 @@ func (p *UsageSvc) processRequest(ctx context.Context, event *v1.RequestEvent, t
 
 func (p *UsageSvc) processCustomerEvents(ev mevents.Event) error {
 	ctx := context.Background()
-	ce := &cpb.Event{}
+	ce := &eventspb.Event{}
 	if err := json.Unmarshal(ev.Payload, ce); err != nil {
 		logger.Errorf("Error unmarshalling customer event: $s", err)
 		return nil
 	}
 	switch ce.Type {
-	case cpb.EventType_EventTypeDeleted:
+	case eventspb.EventType_EventTypeDeleted:
 		if err := p.processCustomerDelete(ctx, ce); err != nil {
 			logger.Errorf("Error processing request event %s", err)
 			return err
@@ -67,7 +67,7 @@ func (p *UsageSvc) processCustomerEvents(ev mevents.Event) error {
 
 }
 
-func (p *UsageSvc) processCustomerDelete(ctx context.Context, event *cpb.Event) error {
+func (p *UsageSvc) processCustomerDelete(ctx context.Context, event *eventspb.Event) error {
 	// delete all their usage
 	return p.deleteUser(ctx, event.Customer.Id)
 }

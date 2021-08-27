@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package events;
+package customers;
 
-option go_package = "./proto;events";
+option go_package = "./proto;customers";
 
 
 enum EventType {
@@ -22,6 +22,10 @@ enum EventType {
   EventTypePasswordReset = 13;
   EventTypeLogin = 14;
   EventTypeLogout = 15;
+  EventTypeBlockKey = 16;
+  EventTypeUnblockKey = 17;
+  EventTypeBalanceIncrement = 18;
+  EventTypeBalanceZero = 19;
 }
 
 // Event holds the customer object plus event specific data in the respective field
@@ -41,12 +45,14 @@ message Event {
   Signup signup = 10;
   GenerateKey generate_key = 11;
   DeleteKey delete_key = 12;
-  TopUp top_up = 13;
+  BalanceIncrement balance_increment = 13;
   AddPaymentMethod add_payment_method = 14;
   DeletePaymentMethod delete_payment_method = 15;
   PasswordReset password_reset = 16;
   Login login = 17;
   Logout logout = 18;
+  BlockKey block_key = 19;
+  UnblockKey unblock_key = 20;
 }
 
 message Customer {
@@ -81,17 +87,27 @@ message Signup {
   string method = 1;
 }
 
-message GenerateKey {}
-
-message DeleteKey {}
-
-message TopUp {
-  int64 amount = 1;
+message GenerateKey {
+  repeated string scopes = 1;
+  string id = 2;
 }
 
-message AddPaymentMethod {}
+message DeleteKey {
+  string id = 1;
+}
 
-message DeletePaymentMethod {}
+message BalanceIncrement {
+  int64 amount = 1;
+  string type = 2; // topup, referral, etc
+}
+
+message AddPaymentMethod {
+  string id = 1;
+}
+
+message DeletePaymentMethod {
+  string id = 1;
+}
 
 message PasswordReset {}
 
@@ -101,3 +117,11 @@ message Login {
 }
 
 message Logout {}
+
+message BlockKey {
+  string id = 1;
+}
+
+message UnblockKey {
+  string id = 1;
+}

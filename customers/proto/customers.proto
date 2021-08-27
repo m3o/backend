@@ -22,22 +22,6 @@ service Customers {
 	rpc Unban(UnbanRequest) returns (UnbanResponse) {}
 }
 
-enum EventType {
-	EventTypeUnknown = 0;
-	EventTypeCreated = 1;
-	EventTypeUpdated = 2;
-	EventTypeDeleted = 3;
-	EventTypeVerified = 4;
-	EventTypeBanned = 5;
-	EventTypeUnbanned = 6;
-}
-
-message Event {
-	EventType type = 1;
-	Customer customer = 2;
-	string caller_id = 3;
-}
-
 message CreateRequest {
 	string id = 1;// deprecated
 	string email = 2;
