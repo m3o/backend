@@ -16,11 +16,12 @@ enum EventType {
   EventTypeSignup = 7;
   EventTypeGenerateKey = 8;
   EventTypeDeleteKey = 9;
-  EventTypeTopUp = 10;
   EventTypeAddPaymentMethod = 11;
   EventTypeDeletePaymentMethod = 12;
   EventTypePasswordReset = 13;
+  // TODO no yet implemented
   EventTypeLogin = 14;
+  // TODO no yet implemented
   EventTypeLogout = 15;
   EventTypeBlockKey = 16;
   EventTypeUnblockKey = 17;
