@@ -15,8 +15,8 @@ import (
 )
 
 func (b *Mixpanel) consumeEvents() {
-	go events.ProcessTopic("requests", "mixpanel", b.processV1APIEvent)
-	go events.ProcessTopic("customers", "mixpanel", b.processCustomerEvent)
+	go events.ProcessTopic(requests.Topic, "mixpanel", b.processV1APIEvent)
+	go events.ProcessTopic(customerspb.Topic, "mixpanel", b.processCustomerEvent)
 }
 
 func (b *Mixpanel) processV1APIEvent(ev mevents.Event) error {

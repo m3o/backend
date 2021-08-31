@@ -594,7 +594,7 @@ func mergeURLPayload(ctx context.Context, md metadata.Metadata, u *url.URL, payl
 }
 
 func publishEndpointEvent(reqURL, apiName, endpointName string, apiRec *apiKeyRecord) {
-	if err := events.Publish("requests", requests.Event{
+	if err := events.Publish(requests.Topic, requests.Event{
 		Type: requests.EventType_EventTypeRequest,
 		Request: &requests.Request{
 			UserId:       apiRec.UserID,

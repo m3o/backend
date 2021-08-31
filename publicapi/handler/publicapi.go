@@ -121,7 +121,7 @@ func (p *Publicapi) Publish(ctx context.Context, request *pb.PublishRequest, res
 
 	// event
 	if isUpdate {
-		if err := events.Publish("publicapi", publicapi.Event{
+		if err := events.Publish(publicapi.Topic, publicapi.Event{
 			Type: publicapi.EventType_EventTypeAPIUpdate,
 			ApiUpdate: &publicapi.APIUpdate{
 				Name: ae.Name,
@@ -129,7 +129,7 @@ func (p *Publicapi) Publish(ctx context.Context, request *pb.PublishRequest, res
 			log.Errorf("Error publishing event %s", err)
 		}
 	} else {
-		if err := events.Publish("publicapi", publicapi.Event{
+		if err := events.Publish(publicapi.Topic, publicapi.Event{
 			Type: publicapi.EventType_EventTypeAPIEnable,
 			ApiEnable: &publicapi.APIEnable{
 				Name: ae.Name,
@@ -256,7 +256,7 @@ func (p *Publicapi) Remove(ctx context.Context, request *pb.RemoveRequest, respo
 	}
 
 	// event
-	if err := events.Publish("publicapi", publicapi.Event{
+	if err := events.Publish(publicapi.Topic, publicapi.Event{
 		Type: publicapi.EventType_EventTypeAPIDisable,
 		ApiDisable: &publicapi.APIDisable{
 			Name: ae.Name,

@@ -111,7 +111,7 @@ func (v1 *V1) GenerateKey(ctx context.Context, req *pb.GenerateKeyRequest, rsp *
 		return errors.InternalServerError("v1.generate", "Failed to generate api key")
 	}
 
-	if err := events.Publish("customers", eventspb.Event{
+	if err := events.Publish(eventspb.Topic, eventspb.Event{
 		Type: eventspb.EventType_EventTypeGenerateKey,
 		Customer: &eventspb.Customer{
 			Id:    acc.ID,
@@ -209,7 +209,7 @@ func (v1 *V1) deleteKey(ctx context.Context, rec *apiKeyRecord) error {
 		return err
 	}
 
-	if err := events.Publish("customers", &eventspb.Event{
+	if err := events.Publish(eventspb.Topic, &eventspb.Event{
 		Type: eventspb.EventType_EventTypeDeleteKey,
 		Customer: &eventspb.Customer{
 			Id: rec.UserID,
@@ -229,7 +229,7 @@ func (v1 *V1) BlockKey(ctx context.Context, request *pb.BlockKeyRequest, respons
 	if err := v1.updateKeyStatus(ctx, "v1.BlockKey", request.Namespace, request.UserId, request.KeyId, keyStatusBlocked, request.Message); err != nil {
 		return err
 	}
-	if err := events.Publish("customers", &eventspb.Event{
+	if err := events.Publish(eventspb.Topic, &eventspb.Event{
 		Type: eventspb.EventType_EventTypeBlockKey,
 		Customer: &eventspb.Customer{
 			Id: request.UserId,
@@ -249,7 +249,7 @@ func (v1 *V1) UnblockKey(ctx context.Context, request *pb.UnblockKeyRequest, res
 	if err := v1.updateKeyStatus(ctx, "v1.UnblockKey", request.Namespace, request.UserId, request.KeyId, keyStatusActive, ""); err != nil {
 		return err
 	}
-	if err := events.Publish("customers", &eventspb.Event{
+	if err := events.Publish(eventspb.Topic, &eventspb.Event{
 		Type: eventspb.EventType_EventTypeUnblockKey,
 		Customer: &eventspb.Customer{
 			Id: request.UserId,

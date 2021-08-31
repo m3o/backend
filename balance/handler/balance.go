@@ -197,7 +197,7 @@ func (b Balance) Increment(ctx context.Context, request *pb.IncrementRequest, re
 			Reference: adj.Reference,
 		},
 	}
-	if err := events.Publish("customers", evt); err != nil {
+	if err := events.Publish(eventspb.Topic, evt); err != nil {
 		logger.Errorf("Error publishing event %+v", evt)
 	}
 
@@ -265,7 +265,7 @@ func (b *Balance) Decrement(ctx context.Context, request *pb.DecrementRequest, r
 		},
 		Customer: &eventspb.Customer{Id: adj.CustomerID},
 	}
-	if err := events.Publish("customers", evt); err != nil {
+	if err := events.Publish(eventspb.Topic, evt); err != nil {
 		logger.Errorf("Error publishing event %+v", evt)
 	}
 
@@ -276,7 +276,7 @@ func (b *Balance) Decrement(ctx context.Context, request *pb.DecrementRequest, r
 		Type:     eventspb.EventType_EventTypeBalanceZero,
 		Customer: &eventspb.Customer{Id: adj.CustomerID},
 	}
-	if err := events.Publish("customers", &evt); err != nil {
+	if err := events.Publish(eventspb.Topic, &evt); err != nil {
 		logger.Errorf("Error publishing event %+v", evt)
 	}
 

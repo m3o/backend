@@ -203,7 +203,7 @@ func (s *Stripe) chargeSucceeded(ctx context.Context, event *stripe.Event) error
 		return err
 	}
 
-	if err := events.Publish("stripe", &stripeevents.Event{
+	if err := events.Publish(stripeevents.Topic, &stripeevents.Event{
 		Type: stripeevents.EventType_EventTypeChargeSucceeded,
 		ChargeSucceeded: &stripeevents.ChargeSuceeded{
 			CustomerId: cm.ID,
@@ -237,7 +237,7 @@ func (s *Stripe) paymentMethodAttached(ctx context.Context, event *stripe.Event)
 		},
 		AddPaymentMethod: &custevents.AddPaymentMethod{Id: paymtMethod.ID},
 	}
-	if err := events.Publish("customers", evt); err != nil {
+	if err := events.Publish(custevents.Topic, evt); err != nil {
 		logger.Errorf("Error publishing event %+v", err)
 		return err
 	}
@@ -272,7 +272,7 @@ func (s *Stripe) paymentMethodDetached(ctx context.Context, event *stripe.Event)
 		},
 		DeletePaymentMethod: &custevents.DeletePaymentMethod{Id: paymtMethod.ID},
 	}
-	if err := events.Publish("customers", evt); err != nil {
+	if err := events.Publish(custevents.Topic, evt); err != nil {
 		logger.Errorf("Error publishing event %+v", err)
 		return err
 	}

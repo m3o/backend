@@ -14,8 +14,8 @@ import (
 )
 
 func (p *UsageSvc) consumeEvents() {
-	go pevents.ProcessTopic("requests", "usage", p.processV1apiEvents)
-	go pevents.ProcessTopic("customers", "usage", p.processCustomerEvents)
+	go pevents.ProcessTopic(requests.Topic, "usage", p.processV1apiEvents)
+	go pevents.ProcessTopic(eventspb.Topic, "usage", p.processCustomerEvents)
 }
 
 func (p *UsageSvc) processV1apiEvents(ev mevents.Event) error {

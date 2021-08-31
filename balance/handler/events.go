@@ -15,14 +15,10 @@ import (
 	"github.com/micro/micro/v3/service/logger"
 )
 
-const (
-	msgInsufficientFunds = "Insufficient funds"
-)
-
 func (b *Balance) consumeEvents() {
-	go pevents.ProcessTopic("requests", "balance", b.processV1apiEvents)
-	go pevents.ProcessTopic("stripe", "balance", b.processStripeEvents)
-	go pevents.ProcessTopic("customers", "balance", b.processCustomerEvents)
+	go pevents.ProcessTopic(requests.Topic, "balance", b.processV1apiEvents)
+	go pevents.ProcessTopic(stripeevents.Topic, "balance", b.processStripeEvents)
+	go pevents.ProcessTopic(eventspb.Topic, "balance", b.processCustomerEvents)
 }
 
 func (b *Balance) processV1apiEvents(ev mevents.Event) error {
@@ -75,7 +71,7 @@ func (b *Balance) processRequest(ctx context.Context, rqe *requests.Request) err
 			Id: rqe.UserId,
 		},
 	}
-	if err := events.Publish("customers", evt); err != nil {
+	if err := events.Publish(eventspb.Topic, evt); err != nil {
 		logger.Errorf("Error publishing event %+v", evt)
 	}
 
@@ -141,7 +137,7 @@ func (b *Balance) processChargeSucceeded(ctx context.Context, ev *stripeevents.C
 		},
 	}
 
-	if err := events.Publish("customers", evt); err != nil {
+	if err := events.Publish(eventspb.Topic, evt); err != nil {
 		logger.Errorf("Error publishing event %+v", evt)
 	}
 

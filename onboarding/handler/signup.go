@@ -31,7 +31,6 @@ import (
 const (
 	microNamespace   = "micro"
 	internalErrorMsg = "An error occurred during onboarding. Contact #m3o-support at slack.m3o.com if the issue persists"
-	topic            = "customers"
 )
 
 const (
@@ -267,7 +266,7 @@ func (e *Signup) completeSignup(ctx context.Context, req *onboarding.CompleteSig
 	rsp.CustomerID = tok.CustomerID
 	rsp.Namespace = microNamespace
 
-	if err := mevents.Publish(topic, &eventspb.Event{
+	if err := mevents.Publish(eventspb.Topic, &eventspb.Event{
 		Type:     eventspb.EventType_EventTypeSignup,
 		Customer: &eventspb.Customer{Id: tok.CustomerID},
 		Signup:   &eventspb.Signup{Method: "email"},
@@ -315,7 +314,7 @@ func (e *Signup) Recover(ctx context.Context, req *onboarding.RecoverRequest, rs
 		e.cache.Set(req.Email, true, cache.DefaultExpiration)
 	}
 
-	if err := mevents.Publish(topic, &eventspb.Event{
+	if err := mevents.Publish(eventspb.Topic, &eventspb.Event{
 		Type: eventspb.EventType_EventTypePasswordReset,
 		Customer: &eventspb.Customer{
 			Id:      crsp.Customer.Id,

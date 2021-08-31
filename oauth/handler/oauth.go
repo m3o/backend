@@ -55,7 +55,6 @@ var (
 const (
 	microNamespace   = "micro"
 	internalErrorMsg = "An error occurred during onboarding. Contact #m3o-support at slack.m3o.com if the issue persists"
-	topic            = "customers"
 )
 
 type googleConf struct {
@@ -325,7 +324,7 @@ func (e *Oauth) registerOauthUser(ctx context.Context, rsp *oauth.LoginResponse,
 	}
 	rsp.CustomerID = crsp.Customer.Id
 	rsp.Namespace = microNamespace
-	if err := mevents.Publish(topic, &eventspb.Event{
+	if err := mevents.Publish(eventspb.Topic, &eventspb.Event{
 		Type:     eventspb.EventType_EventTypeSignup,
 		Customer: objToEvent(crsp.Customer),
 		Signup:   &eventspb.Signup{Method: provider},
@@ -383,7 +382,7 @@ func (e *Oauth) loginOauthUser(ctx context.Context, rsp *oauth.LoginResponse, id
 		} else {
 			cust = crsp.Customer
 		}
-		if err := mevents.Publish(topic, &eventspb.Event{
+		if err := mevents.Publish(eventspb.Topic, &eventspb.Event{
 			Type:     eventspb.EventType_EventTypeLogin,
 			Customer: objToEvent(cust),
 			Login:    &eventspb.Login{Method: provider},

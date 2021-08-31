@@ -136,7 +136,7 @@ func (c *Customers) Create(ctx context.Context, request *customer.CreateRequest,
 		Customer: objToEvent(cust),
 	}
 
-	if err := mevents.Publish(customer.EventsTopic, ev); err != nil {
+	if err := mevents.Publish(eventspb.Topic, ev); err != nil {
 		log.Errorf("Error publishing event %+v", ev)
 	}
 
@@ -177,7 +177,7 @@ func (c *Customers) MarkVerified(ctx context.Context, request *customer.MarkVeri
 		Customer: objToEvent(cus),
 		CallerId: callerID,
 	}
-	if err := mevents.Publish(customer.EventsTopic, ev); err != nil {
+	if err := mevents.Publish(eventspb.Topic, ev); err != nil {
 		log.Errorf("Error publishing event %+v %s", ev, err)
 	}
 
@@ -378,7 +378,7 @@ func (c *Customers) deleteCustomer(ctx context.Context, customerID string, force
 		Customer: objToEvent(cust),
 		CallerId: callerID,
 	}
-	if err := mevents.Publish(customer.EventsTopic, ev); err != nil {
+	if err := mevents.Publish(eventspb.Topic, ev); err != nil {
 		log.Errorf("Error publishing event %+v", ev)
 	}
 
@@ -482,7 +482,7 @@ func (c *Customers) Update(ctx context.Context, request *customer.UpdateRequest,
 		Customer: objToEvent(cust),
 		CallerId: callerID,
 	}
-	if err := mevents.Publish(customer.EventsTopic, ev); err != nil {
+	if err := mevents.Publish(eventspb.Topic, ev); err != nil {
 		log.Errorf("Error publishing event %+v", ev)
 	}
 
@@ -545,7 +545,7 @@ func (c *Customers) Ban(ctx context.Context, request *customer.BanRequest, respo
 		Customer: objToEvent(cm),
 		CallerId: callerID,
 	}
-	if err := mevents.Publish(customer.EventsTopic, ev); err != nil {
+	if err := mevents.Publish(eventspb.Topic, ev); err != nil {
 		log.Errorf("Error publishing event %+v", ev)
 	}
 
@@ -602,7 +602,7 @@ func (c *Customers) Unban(ctx context.Context, request *customer.UnbanRequest, r
 		Customer: objToEvent(cm),
 		CallerId: callerID,
 	}
-	if err := mevents.Publish(customer.EventsTopic, ev); err != nil {
+	if err := mevents.Publish(eventspb.Topic, ev); err != nil {
 		log.Errorf("Error publishing event %+v", ev)
 	}
 

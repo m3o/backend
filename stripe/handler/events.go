@@ -16,7 +16,7 @@ import (
 )
 
 func (s *Stripe) consumeEvents() {
-	go pevents.ProcessTopic("customers", "stripe", s.processCustomerEvents)
+	go pevents.ProcessTopic(eventspb.Topic, "stripe", s.processCustomerEvents)
 }
 
 func (s *Stripe) processCustomerEvents(ev mevents.Event) error {
