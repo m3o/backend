@@ -112,9 +112,9 @@ func (s *Stripe) Webhook(ctx context.Context, req *api.Request, rsp *api.Respons
 		return s.customerCreated(ctx, &ev, isTest)
 	case "charge.succeeded":
 		return s.chargeSucceeded(ctx, &ev)
-	case "payment.method.attached":
+	case "payment_method.attached":
 		return s.paymentMethodAttached(ctx, &ev)
-	case "payment.method.detached":
+	case "payment_method.detached":
 		return s.paymentMethodDetached(ctx, &ev)
 	default:
 		log.Infof("Discarding event %s:%s", ev.ID, ev.Type)
