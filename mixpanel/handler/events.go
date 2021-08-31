@@ -84,18 +84,27 @@ func (b *Mixpanel) processCustomerEvent(ev mevents.Event) error {
 	}
 	customerID := ve.Customer.Id
 	if len(ve.Customer.Email) == 0 {
-		ignore, err := b.ignoreCustomer(customerID)
+		rsp, err := b.custSvc.Read(context.Background(), &customers.ReadRequest{Id: customerID}, client.WithAuthToken())
 		if err != nil {
+			merr, ok := err.(*merrors.Error)
+			if ok {
+				if merr.Code == 404 || merr.Detail == "not found" {
+					logger.Warnf("Failed to find customer %s", customerID)
+					return nil
+				}
+			}
+			logger.Errorf("Failed to read customer %s %s", customerID, err)
 			return err
 		}
-		if ignore {
+		ve.Customer.Email = rsp.Customer.Email
+		ve.Customer.Status = rsp.Customer.Status
+		ve.Customer.Created = rsp.Customer.Created
+		ve.Customer.Updated = rsp.Customer.Updated
+
+	}
+	for _, i := range b.ignoreList {
+		if ve.Customer.Email == i {
 			return nil
-		}
-	} else {
-		for _, i := range b.ignoreList {
-			if ve.Customer.Email == i {
-				return nil
-			}
 		}
 	}
 
