@@ -23,6 +23,24 @@ All services are Micro services written using the Micro framework without except
 - Messages are used for async eventing
 - Infrastructure usage occurs only through Micro
 
+## Events
+All events should be defined in protobuf under `pkg/events/proto/<topic_name>`. The directory should contain the following files.
+### `events.proto` 
+This should define 
+- `enum EventType` - enumerates all the event types available
+- `message Event` - which should contain at least the field `EnumType type`. Any data specific to the event should be defined in separate fields in the `Event` message. You may also find it useful to have data that is common to all events in a common field. For example, the events on the `customers` stream have a `Customer` field which at a minimum contains the customer ID. The events then have event specific messages for any other data, e.g. the field `Created` contains data associated with the customer creation event.  
+   
+### `constants.go`
+This file should define the topic name so that publishers/consumers can reference this const rather than hand coding the topic name (with the potential for errors). e.g. 
+
+```
+const Topic = "customers"
+```
+
+See existing directories for examples.
+
+
+
 ## Naming
 
 Directories are the domain boundary for a specific concern e.g user, account, payment. They act as the 
