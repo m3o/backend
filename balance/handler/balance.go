@@ -12,7 +12,6 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	pb "github.com/m3o/services/balance/proto"
-	ns "github.com/m3o/services/namespaces/proto"
 	m3oauth "github.com/m3o/services/pkg/auth"
 	eventspb "github.com/m3o/services/pkg/events/proto/customers"
 	publicapi "github.com/m3o/services/publicapi/proto"
@@ -30,7 +29,6 @@ import (
 
 const (
 	prefixCounter         = "balance-service/counter"
-	microNamespace        = "micro"
 	prefixStoreByCustomer = "adjByCust"
 )
 
@@ -123,7 +121,6 @@ type Balance struct {
 	c         *counter // counts the balance. Balance is expressed in 1/10,000ths of a cent which allows us to price in fractions e.g. a request costs 0.0001 cents or 10,000 requests for 1 cent
 	v1Svc     v1.V1Service
 	pubSvc    *publicAPICache
-	nsSvc     ns.NamespacesService
 	stripeSvc stripe.StripeService
 }
 
@@ -159,7 +156,6 @@ func NewHandler(svc *service.Service) *Balance {
 			cache:  map[string]*publicAPICacheEntry{},
 			ttl:    5 * time.Minute,
 		},
-		nsSvc:     ns.NewNamespacesService("namespaces", svc.Client()),
 		stripeSvc: stripe.NewStripeService("stripe", svc.Client()),
 	}
 	go b.consumeEvents()
