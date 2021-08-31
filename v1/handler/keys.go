@@ -112,7 +112,7 @@ func (v1 *V1) GenerateKey(ctx context.Context, req *pb.GenerateKeyRequest, rsp *
 	}
 
 	if err := events.Publish("customers", eventspb.Event{
-		Type: eventspb.EventType_EventTypeGemerateKey,
+		Type: eventspb.EventType_EventTypeGenerateKey,
 		Customer: &eventspb.Customer{
 			Id:    acc.ID,
 			Email: acc.Name,

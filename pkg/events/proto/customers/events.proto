@@ -14,7 +14,7 @@ enum EventType {
   EventTypeBanned = 5;
   EventTypeUnbanned = 6;
   EventTypeSignup = 7;
-  EventTypeGemerateKey = 8;
+  EventTypeGenerateKey = 8;
   EventTypeDeleteKey = 9;
   EventTypeTopUp = 10;
   EventTypeAddPaymentMethod = 11;

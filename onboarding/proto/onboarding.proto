@@ -59,21 +59,6 @@ message ResetPasswordRequest{
 
 message ResetPasswordResponse {}
 
-message Event {
-	string type = 1;
-	NewSignupEvent newSignup = 2;
-	PasswordResetEvent passwordReset = 3;
-}
-
-message NewSignupEvent {
-	string email = 1;
-	string id = 2;
-}
-
-message PasswordResetEvent {
-	string email = 1;
-}
-
 message TrackRequest {
 	// tracking id, generated on the frontend
 	string id = 1;
