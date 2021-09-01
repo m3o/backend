@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	customers "github.com/m3o/services/customers/proto"
 	"github.com/m3o/services/pkg/events"
@@ -41,6 +42,13 @@ func (b *Mixpanel) processV1APIEvent(ev mevents.Event) error {
 		return nil
 	}
 	if err != nil {
+		return err
+	}
+
+	if _, ok := requests.EventType_name[int32(ve.Type)]; !ok {
+		// we don't recognise this event type, perhaps it's new and we haven't rebuilt against it
+		err := fmt.Errorf("unrecognised event type %+v", ve.Type.String())
+		logger.Errorf("Error processing: %s", err.Error())
 		return err
 	}
 
@@ -106,6 +114,12 @@ func (b *Mixpanel) processCustomerEvent(ev mevents.Event) error {
 		if ve.Customer.Email == i {
 			return nil
 		}
+	}
+	if _, ok := customerspb.EventType_name[int32(ve.Type)]; !ok {
+		// we don't recognise this event type, perhaps it's new and we haven't rebuilt against it
+		err := fmt.Errorf("unrecognised event type %+v", ve.Type.String())
+		logger.Errorf("Error processing: %s", err.Error())
+		return err
 	}
 
 	mEv := b.client.newMixpanelEvent(ev.Topic, ve.Type.String(), customerID, ev.ID, ev.Timestamp.Unix(), ve)
