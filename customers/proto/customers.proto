@@ -102,10 +102,14 @@ message LoginRequest {
 	string refresh_token = 3;
 }
 
-message LoginResponse {
+message Token {
 	string access_token = 1;
 	string refresh_token = 2;
 	int64 expiry = 3;
+}
+
+message LoginResponse {
+	Token token = 1;
 }
 
 message LogoutRequest {

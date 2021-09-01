@@ -650,9 +650,11 @@ func (c *Customers) Login(ctx context.Context, request *customer.LoginRequest, r
 		}
 
 	}
-	response.RefreshToken = tok.RefreshToken
-	response.Expiry = tok.Expiry.Unix()
-	response.AccessToken = tok.AccessToken
+	response.Token = &customer.Token{
+		AccessToken:  tok.AccessToken,
+		RefreshToken: tok.RefreshToken,
+		Expiry:       tok.Expiry.Unix(),
+	}
 
 	go func() {
 		acc, err := c.auth.Inspect(tok.AccessToken)
