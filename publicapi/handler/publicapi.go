@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	m3oauth "github.com/m3o/services/pkg/auth"
+	"github.com/m3o/services/pkg/events/proto/publicapi"
 	pb "github.com/m3o/services/publicapi/proto"
 	"github.com/micro/micro/v3/service"
 	"github.com/micro/micro/v3/service/auth"
@@ -55,6 +56,7 @@ func (p *Publicapi) Publish(ctx context.Context, request *pb.PublishRequest, res
 	if err != nil && err != store.ErrNotFound {
 		return err
 	}
+	isUpdate := false
 	if len(recs) > 0 {
 		// update the existing
 		var ae APIEntry
@@ -62,6 +64,7 @@ func (p *Publicapi) Publish(ctx context.Context, request *pb.PublishRequest, res
 			return err
 		}
 		id = ae.ID
+		isUpdate = true
 	}
 
 	acc, _ := auth.AccountFromContext(ctx)
@@ -117,11 +120,22 @@ func (p *Publicapi) Publish(ctx context.Context, request *pb.PublishRequest, res
 	}
 
 	// event
-	if err := events.Publish("publicapi", pb.Event{Type: "APIPublish",
-		ApiPublish: &pb.APIPublishEvent{
-			Name: ae.Name,
-		}}); err != nil {
-		log.Errorf("Error publishing event %s", err)
+	if isUpdate {
+		if err := events.Publish(publicapi.Topic, publicapi.Event{
+			Type: publicapi.EventType_EventTypeAPIUpdate,
+			ApiUpdate: &publicapi.APIUpdate{
+				Name: ae.Name,
+			}}); err != nil {
+			log.Errorf("Error publishing event %s", err)
+		}
+	} else {
+		if err := events.Publish(publicapi.Topic, publicapi.Event{
+			Type: publicapi.EventType_EventTypeAPIEnable,
+			ApiEnable: &publicapi.APIEnable{
+				Name: ae.Name,
+			}}); err != nil {
+			log.Errorf("Error publishing event %s", err)
+		}
 	}
 	response.Api = marshal(ae)
 	// TODO any other v1 things?
@@ -242,8 +256,9 @@ func (p *Publicapi) Remove(ctx context.Context, request *pb.RemoveRequest, respo
 	}
 
 	// event
-	if err := events.Publish("publicapi", pb.Event{Type: "APIRemove",
-		ApiRemove: &pb.APIRemoveEvent{
+	if err := events.Publish(publicapi.Topic, publicapi.Event{
+		Type: publicapi.EventType_EventTypeAPIDisable,
+		ApiDisable: &publicapi.APIDisable{
 			Name: ae.Name,
 		}}); err != nil {
 		log.Errorf("Error publishing event %s", err)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	m3oauth "github.com/m3o/services/pkg/auth"
+	eventspb "github.com/m3o/services/pkg/events/proto/customers"
 	pb "github.com/m3o/services/v1/proto"
 	authpb "github.com/micro/micro/v3/proto/auth"
 	"github.com/micro/micro/v3/service/auth"
@@ -110,12 +111,15 @@ func (v1 *V1) GenerateKey(ctx context.Context, req *pb.GenerateKeyRequest, rsp *
 		return errors.InternalServerError("v1.generate", "Failed to generate api key")
 	}
 
-	if err := events.Publish("v1api", pb.Event{Type: "APIKeyCreate",
-		ApiKeyCreate: &pb.APIKeyCreateEvent{
-			UserId:    rec.UserID,
-			Namespace: rec.Namespace,
-			ApiKeyId:  rec.ID,
-			Scopes:    rec.Scopes,
+	if err := events.Publish(eventspb.Topic, eventspb.Event{
+		Type: eventspb.EventType_EventTypeGenerateKey,
+		Customer: &eventspb.Customer{
+			Id:    acc.ID,
+			Email: acc.Name,
+		},
+		GenerateKey: &eventspb.GenerateKey{
+			Scopes: rec.Scopes,
+			Id:     rec.ID,
 		}}); err != nil {
 		log.Errorf("Error publishing event %s", err)
 	}
@@ -205,12 +209,13 @@ func (v1 *V1) deleteKey(ctx context.Context, rec *apiKeyRecord) error {
 		return err
 	}
 
-	if err := events.Publish("v1api", pb.Event{Type: "APIKeyRevoke",
-		ApiKeyRevoke: &pb.APIKeyRevokeEvent{
-			UserId:    rec.UserID,
-			Namespace: rec.Namespace,
-			ApiKeyId:  rec.ID,
-		}}); err != nil {
+	if err := events.Publish(eventspb.Topic, &eventspb.Event{
+		Type: eventspb.EventType_EventTypeDeleteKey,
+		Customer: &eventspb.Customer{
+			Id: rec.UserID,
+		},
+		DeleteKey: &eventspb.DeleteKey{Id: rec.ID},
+	}); err != nil {
 		log.Errorf("Error publishing event %s", err)
 	}
 
@@ -221,14 +226,40 @@ func (v1 *V1) BlockKey(ctx context.Context, request *pb.BlockKeyRequest, respons
 	if _, err := m3oauth.VerifyMicroAdmin(ctx, "v1.BlockKey"); err != nil {
 		return err
 	}
-	return v1.updateKeyStatus(ctx, "v1.BlockKey", request.Namespace, request.UserId, request.KeyId, keyStatusBlocked, request.Message)
+	if err := v1.updateKeyStatus(ctx, "v1.BlockKey", request.Namespace, request.UserId, request.KeyId, keyStatusBlocked, request.Message); err != nil {
+		return err
+	}
+	if err := events.Publish(eventspb.Topic, &eventspb.Event{
+		Type: eventspb.EventType_EventTypeBlockKey,
+		Customer: &eventspb.Customer{
+			Id: request.UserId,
+		},
+		BlockKey: &eventspb.BlockKey{Id: request.KeyId},
+	}); err != nil {
+		log.Errorf("Error publishing event %s", err)
+	}
+
+	return nil
 }
 
 func (v1 *V1) UnblockKey(ctx context.Context, request *pb.UnblockKeyRequest, response *pb.UnblockKeyResponse) error {
 	if _, err := m3oauth.VerifyMicroAdmin(ctx, "v1.UnblockKey"); err != nil {
 		return err
 	}
-	return v1.updateKeyStatus(ctx, "v1.UnblockKey", request.Namespace, request.UserId, request.KeyId, keyStatusActive, "")
+	if err := v1.updateKeyStatus(ctx, "v1.UnblockKey", request.Namespace, request.UserId, request.KeyId, keyStatusActive, ""); err != nil {
+		return err
+	}
+	if err := events.Publish(eventspb.Topic, &eventspb.Event{
+		Type: eventspb.EventType_EventTypeUnblockKey,
+		Customer: &eventspb.Customer{
+			Id: request.UserId,
+		},
+		UnblockKey: &eventspb.UnblockKey{Id: request.KeyId},
+	}); err != nil {
+		log.Errorf("Error publishing event %s", err)
+	}
+
+	return nil
 }
 
 func (v1 *V1) updateKeyStatus(ctx context.Context, methodName, ns, userID, keyID string, status keyStatus, statusMessage string) error {

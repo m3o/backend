@@ -8,6 +8,8 @@ import (
 
 	custpb "github.com/m3o/services/customers/proto"
 	m3oauth "github.com/m3o/services/pkg/auth"
+	custevents "github.com/m3o/services/pkg/events/proto/customers"
+	stripeevents "github.com/m3o/services/pkg/events/proto/stripe"
 	stripepb "github.com/m3o/services/stripe/proto"
 	api "github.com/micro/micro/v3/proto/api"
 	"github.com/micro/micro/v3/service"
@@ -17,6 +19,7 @@ import (
 	"github.com/micro/micro/v3/service/context/metadata"
 	"github.com/micro/micro/v3/service/errors"
 	"github.com/micro/micro/v3/service/events"
+	"github.com/micro/micro/v3/service/logger"
 	log "github.com/micro/micro/v3/service/logger"
 	"github.com/micro/micro/v3/service/store"
 	"github.com/stripe/stripe-go/v71/webhook"
@@ -109,8 +112,10 @@ func (s *Stripe) Webhook(ctx context.Context, req *api.Request, rsp *api.Respons
 		return s.customerCreated(ctx, &ev, isTest)
 	case "charge.succeeded":
 		return s.chargeSucceeded(ctx, &ev)
-	case "checkout.session.completed":
-		return s.checkoutSessionCompleted(ctx, &ev)
+	case "payment_method.attached":
+		return s.paymentMethodAttached(ctx, &ev)
+	case "payment_method.detached":
+		return s.paymentMethodDetached(ctx, &ev)
 	default:
 		log.Infof("Discarding event %s:%s", ev.ID, ev.Type)
 	}
@@ -198,9 +203,9 @@ func (s *Stripe) chargeSucceeded(ctx context.Context, event *stripe.Event) error
 		return err
 	}
 
-	if err := events.Publish("stripe", &stripepb.Event{
-		Type: "ChargeSucceeded",
-		ChargeSucceeded: &stripepb.ChargeSuceededEvent{
+	if err := events.Publish(stripeevents.Topic, &stripeevents.Event{
+		Type: stripeevents.EventType_EventTypeChargeSucceeded,
+		ChargeSucceeded: &stripeevents.ChargeSuceeded{
 			CustomerId: cm.ID,
 			Currency:   string(ch.Currency), // TOOD
 			Amount:     ch.Amount,
@@ -214,7 +219,64 @@ func (s *Stripe) chargeSucceeded(ctx context.Context, event *stripe.Event) error
 	return nil
 }
 
-func (s *Stripe) checkoutSessionCompleted(ctx context.Context, event *stripe.Event) error {
+func (s *Stripe) paymentMethodAttached(ctx context.Context, event *stripe.Event) error {
+	var paymtMethod stripe.PaymentMethod
+	if err := json.Unmarshal(event.Data.Raw, &paymtMethod); err != nil {
+		return err
+	}
+	cm, err := mappingForStripeCustomer(paymtMethod.Customer.ID)
+	if err != nil {
+		logger.Errorf("Error looking up customer mapping %s", err)
+		return err
+	}
+
+	evt := &custevents.Event{
+		Type: custevents.EventType_EventTypeAddPaymentMethod,
+		Customer: &custevents.Customer{
+			Id: cm.ID,
+		},
+		AddPaymentMethod: &custevents.AddPaymentMethod{Id: paymtMethod.ID},
+	}
+	if err := events.Publish(custevents.Topic, evt); err != nil {
+		logger.Errorf("Error publishing event %+v", err)
+		return err
+	}
+
+	return nil
+}
+
+func (s *Stripe) paymentMethodDetached(ctx context.Context, event *stripe.Event) error {
+	var paymtMethod stripe.PaymentMethod
+	if err := json.Unmarshal(event.Data.Raw, &paymtMethod); err != nil {
+		return err
+	}
+	custID := paymtMethod.Customer.ID
+
+	if len(custID) == 0 {
+		custID = event.GetPreviousValue("customer")
+		if len(custID) == 0 {
+			logger.Errorf("Unable to determine customer ID")
+			return nil
+		}
+	}
+
+	cm, err := mappingForStripeCustomer(custID)
+	if err != nil {
+		logger.Errorf("Error looking up customer mapping %s", err)
+		return err
+	}
+	evt := &custevents.Event{
+		Type: custevents.EventType_EventTypeDeletePaymentMethod,
+		Customer: &custevents.Customer{
+			Id: cm.ID,
+		},
+		DeletePaymentMethod: &custevents.DeletePaymentMethod{Id: paymtMethod.ID},
+	}
+	if err := events.Publish(custevents.Topic, evt); err != nil {
+		logger.Errorf("Error publishing event %+v", err)
+		return err
+	}
+
 	return nil
 }
 
@@ -393,6 +455,7 @@ func (s *Stripe) DeleteCard(ctx context.Context, request *stripepb.DeleteCardReq
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -424,6 +487,19 @@ func mappingForCustomer(ctx context.Context, method string) (*auth.Account, *Cus
 	var cm CustomerMapping
 	json.Unmarshal(recs[0].Value, &cm)
 	return acc, &cm, nil
+}
+
+// mappingForStripeCustomer returns the customer mapping for this stripe customer
+func mappingForStripeCustomer(stripeID string) (*CustomerMapping, error) {
+	recs, err := store.Read(fmt.Sprintf(prefixStripeID, stripeID))
+	if err != nil {
+		log.Errorf("Error looking up stripe customer %s", err)
+		return nil, err
+	}
+
+	var cm CustomerMapping
+	json.Unmarshal(recs[0].Value, &cm)
+	return &cm, nil
 }
 
 func (s *Stripe) ListPayments(ctx context.Context, request *stripepb.ListPaymentsRequest, response *stripepb.ListPaymentsResponse) error {

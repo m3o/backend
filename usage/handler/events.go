@@ -6,27 +6,27 @@ import (
 	"fmt"
 	"time"
 
-	cpb "github.com/m3o/services/customers/proto"
 	pevents "github.com/m3o/services/pkg/events"
-	v1 "github.com/m3o/services/v1/proto"
+	eventspb "github.com/m3o/services/pkg/events/proto/customers"
+	"github.com/m3o/services/pkg/events/proto/requests"
 	mevents "github.com/micro/micro/v3/service/events"
 	"github.com/micro/micro/v3/service/logger"
 )
 
 func (p *UsageSvc) consumeEvents() {
-	go pevents.ProcessTopic("v1api", "usage", p.processV1apiEvents)
-	go pevents.ProcessTopic("customers", "usage", p.processCustomerEvents)
+	go pevents.ProcessTopic(requests.Topic, "usage", p.processV1apiEvents)
+	go pevents.ProcessTopic(eventspb.Topic, "usage", p.processCustomerEvents)
 }
 
 func (p *UsageSvc) processV1apiEvents(ev mevents.Event) error {
 	ctx := context.Background()
-	ve := &v1.Event{}
+	ve := &requests.Event{}
 	if err := json.Unmarshal(ev.Payload, ve); err != nil {
 		logger.Errorf("Error unmarshalling v1 event: $s", err)
 		return nil
 	}
 	switch ve.Type {
-	case "Request":
+	case requests.EventType_EventTypeRequest:
 		if err := p.processRequest(ctx, ve.Request, ev.Timestamp); err != nil {
 			logger.Errorf("Error processing request event %s", err)
 			return err
@@ -38,7 +38,7 @@ func (p *UsageSvc) processV1apiEvents(ev mevents.Event) error {
 
 }
 
-func (p *UsageSvc) processRequest(ctx context.Context, event *v1.RequestEvent, t time.Time) error {
+func (p *UsageSvc) processRequest(ctx context.Context, event *requests.Request, t time.Time) error {
 	_, err := p.c.incr(ctx, event.UserId, event.ApiName, 1, t)
 	p.c.incr(ctx, event.UserId, fmt.Sprintf("%s$%s", event.ApiName, event.EndpointName), 1, t)
 	// incr total counts for the API and individual endpoint
@@ -49,13 +49,13 @@ func (p *UsageSvc) processRequest(ctx context.Context, event *v1.RequestEvent, t
 
 func (p *UsageSvc) processCustomerEvents(ev mevents.Event) error {
 	ctx := context.Background()
-	ce := &cpb.Event{}
+	ce := &eventspb.Event{}
 	if err := json.Unmarshal(ev.Payload, ce); err != nil {
 		logger.Errorf("Error unmarshalling customer event: $s", err)
 		return nil
 	}
 	switch ce.Type {
-	case cpb.EventType_EventTypeDeleted:
+	case eventspb.EventType_EventTypeDeleted:
 		if err := p.processCustomerDelete(ctx, ce); err != nil {
 			logger.Errorf("Error processing request event %s", err)
 			return err
@@ -67,7 +67,7 @@ func (p *UsageSvc) processCustomerEvents(ev mevents.Event) error {
 
 }
 
-func (p *UsageSvc) processCustomerDelete(ctx context.Context, event *cpb.Event) error {
+func (p *UsageSvc) processCustomerDelete(ctx context.Context, event *eventspb.Event) error {
 	// delete all their usage
 	return p.deleteUser(ctx, event.Customer.Id)
 }

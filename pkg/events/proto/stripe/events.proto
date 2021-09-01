@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package stripeevents;
+
+option go_package = "./proto;stripe";
+
+enum EventType {
+  EventTypeUnknown = 0;
+  EventTypeChargeSucceeded = 1;
+}
+
+message Event {
+  EventType type = 1;
+  ChargeSuceeded charge_succeeded = 2;
+}
+
+message ChargeSuceeded {
+  string customer_id = 1;
+  string currency = 2;
+  int64 amount = 3; // in minor units e.g. cents, pence, etc
+  string charge_id = 4;
+}
+

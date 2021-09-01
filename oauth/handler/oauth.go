@@ -15,7 +15,7 @@ import (
 	cproto "github.com/m3o/services/customers/proto"
 	eproto "github.com/m3o/services/emails/proto"
 	oauth "github.com/m3o/services/oauth/proto"
-	onboarding "github.com/m3o/services/onboarding/proto"
+	eventspb "github.com/m3o/services/pkg/events/proto/customers"
 	authproto "github.com/micro/micro/v3/proto/auth"
 	"github.com/micro/micro/v3/service"
 	"github.com/micro/micro/v3/service/auth"
@@ -55,7 +55,6 @@ var (
 const (
 	microNamespace   = "micro"
 	internalErrorMsg = "An error occurred during onboarding. Contact #m3o-support at slack.m3o.com if the issue persists"
-	topic            = "onboarding"
 )
 
 type googleConf struct {
@@ -202,13 +201,13 @@ func (e *Oauth) GoogleLogin(ctx context.Context, req *oauth.GoogleLoginRequest, 
 	if err != nil && (strings.Contains(err.Error(), "notfound") || strings.Contains(err.Error(), "not found")) {
 		logger.Infof("Oauth registering %v", email)
 		rsp.IsSignup = true
-		return e.registerOauthUser(ctx, rsp, email)
+		return e.registerOauthUser(ctx, rsp, email, "google")
 	}
 	if err != nil {
 		return err
 	}
 	logger.Infof("Oauth logging in %v", email)
-	return e.loginOauthUser(ctx, rsp, readResp.Customer.Id, email)
+	return e.loginOauthUser(ctx, rsp, readResp.Customer.Id, email, "google")
 }
 
 func (e *Oauth) GithubURL(ctx context.Context, req *oauth.GithubURLRequest, rsp *oauth.GithubURLResponse) error {
@@ -278,16 +277,16 @@ func (e *Oauth) GithubLogin(ctx context.Context, req *oauth.GithubLoginRequest, 
 	if err != nil && (strings.Contains(err.Error(), "notfound") || strings.Contains(err.Error(), "not found")) {
 		logger.Infof("Oauth registering %v", email)
 		rsp.IsSignup = true
-		return e.registerOauthUser(ctx, rsp, email)
+		return e.registerOauthUser(ctx, rsp, email, "github")
 	}
 	if err != nil {
 		return err
 	}
 	logger.Infof("Oauth logging in %v", email)
-	return e.loginOauthUser(ctx, rsp, readResp.Customer.Id, email)
+	return e.loginOauthUser(ctx, rsp, readResp.Customer.Id, email, "github")
 }
 
-func (e *Oauth) registerOauthUser(ctx context.Context, rsp *oauth.LoginResponse, email string) error {
+func (e *Oauth) registerOauthUser(ctx context.Context, rsp *oauth.LoginResponse, email, provider string) error {
 	// create entry in customers service
 	crsp, err := e.customerService.Create(ctx, &cproto.CreateRequest{Email: email}, client.WithAuthToken())
 	if err != nil {
@@ -325,13 +324,27 @@ func (e *Oauth) registerOauthUser(ctx context.Context, rsp *oauth.LoginResponse,
 	}
 	rsp.CustomerID = crsp.Customer.Id
 	rsp.Namespace = microNamespace
-	if err := mevents.Publish(topic, &onboarding.Event{Type: "newSignup", NewSignup: &onboarding.NewSignupEvent{Email: email, Id: crsp.Customer.Id}}); err != nil {
+	if err := mevents.Publish(eventspb.Topic, &eventspb.Event{
+		Type:     eventspb.EventType_EventTypeSignup,
+		Customer: objToEvent(crsp.Customer),
+		Signup:   &eventspb.Signup{Method: provider},
+	}); err != nil {
 		logger.Warnf("Error publishing %s", err)
 	}
 	return nil
 }
 
-func (e *Oauth) loginOauthUser(ctx context.Context, rsp *oauth.LoginResponse, id, email string) error {
+func objToEvent(cust *cproto.Customer) *eventspb.Customer {
+	return &eventspb.Customer{
+		Id:      cust.Id,
+		Status:  cust.Status,
+		Created: cust.Created,
+		Email:   cust.Email,
+		Updated: cust.Updated,
+	}
+}
+
+func (e *Oauth) loginOauthUser(ctx context.Context, rsp *oauth.LoginResponse, id, email, provider string) error {
 	secret := uuid.New().String()
 	_, err := e.accounts.ChangeSecret(ctx, &authproto.ChangeSecretRequest{
 		Id:        email,
@@ -357,6 +370,26 @@ func (e *Oauth) loginOauthUser(ctx context.Context, rsp *oauth.LoginResponse, id
 	}
 	rsp.CustomerID = id
 	rsp.Namespace = microNamespace
+
+	go func() {
+		crsp, err := e.customerService.Read(ctx, &cproto.ReadRequest{
+			Id: id,
+		}, client.WithAuthToken())
+		var cust *cproto.Customer
+		if err != nil {
+			logger.Errorf("Error looking up customer")
+			cust = &cproto.Customer{Id: id}
+		} else {
+			cust = crsp.Customer
+		}
+		if err := mevents.Publish(eventspb.Topic, &eventspb.Event{
+			Type:     eventspb.EventType_EventTypeLogin,
+			Customer: objToEvent(cust),
+			Login:    &eventspb.Login{Method: provider},
+		}); err != nil {
+			logger.Warnf("Error publishing %s", err)
+		}
+	}()
 
 	return nil
 }

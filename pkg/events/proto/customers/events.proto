@@ -1,0 +1,141 @@
+syntax = "proto3";
+
+package customersevents;
+
+option go_package = "./proto;customers";
+
+
+enum EventType {
+  EventTypeUnknown = 0;
+  EventTypeCreated = 1;
+  EventTypeUpdated = 2;
+  EventTypeDeleted = 3;
+  EventTypeVerified = 4;
+  EventTypeBanned = 5;
+  EventTypeUnbanned = 6;
+  EventTypeSignup = 7;
+  EventTypeGenerateKey = 8;
+  EventTypeDeleteKey = 9;
+  EventTypeAddPaymentMethod = 11;
+  EventTypeDeletePaymentMethod = 12;
+  EventTypePasswordReset = 13;
+  EventTypeLogin = 14;
+  EventTypeLogout = 15;
+  EventTypeBlockKey = 16;
+  EventTypeUnblockKey = 17;
+  EventTypeBalanceIncrement = 18;
+  EventTypeBalanceZero = 19;
+  EventTypeBalanceDecrement = 20;
+  EventTypeTokenRefresh = 21;
+}
+
+// Event holds the customer object plus event specific data in the respective field
+message Event {
+  EventType type = 1;
+  Customer customer = 2;
+  string caller_id = 3;
+
+  // event specific data
+
+  Created created = 4;
+  Updated updated = 5;
+  Deleted deleted = 6;
+  Verified verified = 7;
+  Banned banned = 8;
+  Unbanned unbanned = 9;
+  Signup signup = 10;
+  GenerateKey generate_key = 11;
+  DeleteKey delete_key = 12;
+  BalanceIncrement balance_increment = 13;
+  AddPaymentMethod add_payment_method = 14;
+  DeletePaymentMethod delete_payment_method = 15;
+  PasswordReset password_reset = 16;
+  Login login = 17;
+  Logout logout = 18;
+  BlockKey block_key = 19;
+  UnblockKey unblock_key = 20;
+  BalanceDecrement balance_decrement = 21;
+  TokenRefresh token_refresh = 22;
+}
+
+message Customer {
+  string id = 1;
+  string status = 2; // awaiting_verification, verified, active, inactive
+  int64 created = 3;
+  string email = 6;
+  int64 updated = 7;
+}
+
+
+message Created {
+}
+
+message Updated {
+}
+
+message Deleted {
+}
+
+message Verified {
+}
+
+message Banned {
+}
+
+message Unbanned {
+}
+
+message Signup {
+  // github/google/email
+  string method = 1;
+}
+
+message GenerateKey {
+  repeated string scopes = 1;
+  string id = 2;
+}
+
+message DeleteKey {
+  string id = 1;
+}
+
+message BalanceIncrement {
+  int64 amount = 1;
+  string type = 2; // topup, referral, etc
+  string reference = 3;
+}
+
+message AddPaymentMethod {
+  string id = 1;
+}
+
+message DeletePaymentMethod {
+  string id = 1;
+}
+
+message PasswordReset {}
+
+message Login {
+  // github/google/email
+  string method = 1;
+}
+
+message Logout {}
+
+message BlockKey {
+  string id = 1;
+}
+
+message UnblockKey {
+  string id = 1;
+}
+
+message BalanceDecrement {
+  int64 amount = 1;
+  string type = 2;
+  string reference = 3;
+}
+
+message TokenRefresh {
+
+}

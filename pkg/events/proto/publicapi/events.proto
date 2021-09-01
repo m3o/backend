@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package publicapievents;
+
+option go_package = "./proto;publicapi";
+
+enum EventType {
+  EventTypeUnknown = 0;
+  EventTypeAPIEnable = 1;
+  EventTypeAPIDisable = 2;
+  EventTypeAPIUpdate = 3;
+}
+
+message Event {
+  EventType type = 1;
+
+  APIEnable api_enable = 2;
+  APIDisable api_disable = 3;
+  APIUpdate api_update = 4;
+}
+
+message APIEnable {
+  string name = 1;
+}
+
+message APIDisable {
+  string name = 1;
+}
+
+message APIUpdate {
+  string name = 1;
+}

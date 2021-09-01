@@ -43,45 +43,6 @@ message RevokeRequest {
 
 message RevokeResponse {}
 
-message Event {
-	RequestEvent request = 1;
-	APIKeyCreateEvent api_key_create = 2;
-	string type = 3;
-	APIKeyRevokeEvent api_key_revoke = 4;
-	APIEnableEvent api_enable = 5;
-	APIDisableEvent api_disable = 6;
-}
-
-message APIKeyCreateEvent {
-	string user_id = 1;
-	string namespace = 2;
-	string api_key_id = 3;
-	repeated string scopes = 4;
-}
-
-message APIEnableEvent {
-	string name = 1;
-}
-
-message APIDisableEvent {
-	string name = 1;
-}
-
-message RequestEvent {
-	string user_id = 1;
-	string namespace = 2;
-	string api_key_id = 3;
-	string url = 4;
-	string api_name = 5;
-	string endpoint_name = 6;
-}
-
-message APIKeyRevokeEvent {
-	string user_id = 1;
-	string namespace = 2;
-	string api_key_id = 3;
-}
-
 message BlockKeyRequest {
 	string user_id = 1;
 	string namespace = 2;

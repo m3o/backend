@@ -60,19 +60,6 @@ message ListAdjustmentsResponse {
 	repeated Adjustment adjustments = 1;
 }
 
-enum EventType {
-	EventTypeUnknown = 0;
-	EventTypeIncrement = 1;
-	EventTypeDecrement = 2;
-	EventTypeZeroBalance = 3;
-}
-
-message Event {
-	EventType type = 1;
-	Adjustment adjustment = 2;
-	string customer_id = 3;
-}
-
 message DeleteCustomerRequest {
 	string user_id = 1;
 }

@@ -72,15 +72,3 @@ message GetPaymentResponse {
 	Payment payment = 1;
 }
 
-message Event {
-	string type = 1;
-	ChargeSuceededEvent charge_succeeded = 2;
-}
-
-message ChargeSuceededEvent {
-	string customer_id = 1;
-	string currency = 2;
-	int64 amount = 3; // in minor units e.g. cents, pence, etc
-	string charge_id = 4;
-}
-

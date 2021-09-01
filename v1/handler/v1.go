@@ -18,6 +18,7 @@ import (
 	alertpb "github.com/m3o/services/alert/proto/alert"
 	balance "github.com/m3o/services/balance/proto"
 	m3oauth "github.com/m3o/services/pkg/auth"
+	"github.com/m3o/services/pkg/events/proto/requests"
 	publicapi "github.com/m3o/services/publicapi/proto"
 	v1 "github.com/m3o/services/v1/proto"
 	authpb "github.com/micro/micro/v3/proto/auth"
@@ -593,8 +594,9 @@ func mergeURLPayload(ctx context.Context, md metadata.Metadata, u *url.URL, payl
 }
 
 func publishEndpointEvent(reqURL, apiName, endpointName string, apiRec *apiKeyRecord) {
-	if err := events.Publish("v1api", v1.Event{Type: "Request",
-		Request: &v1.RequestEvent{
+	if err := events.Publish(requests.Topic, requests.Event{
+		Type: requests.EventType_EventTypeRequest,
+		Request: &requests.Request{
 			UserId:       apiRec.UserID,
 			Namespace:    apiRec.Namespace,
 			ApiKeyId:     apiRec.ID,

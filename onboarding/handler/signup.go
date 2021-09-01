@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	eventspb "github.com/m3o/services/pkg/events/proto/customers"
 	mevents "github.com/micro/micro/v3/service/events"
 	"github.com/patrickmn/go-cache"
 
@@ -29,13 +31,10 @@ import (
 const (
 	microNamespace   = "micro"
 	internalErrorMsg = "An error occurred during onboarding. Contact #m3o-support at slack.m3o.com if the issue persists"
-	topic            = "onboarding"
 )
 
 const (
 	expiryDuration = 5 * time.Minute
-
-	onboardingTopic = "onboarding"
 )
 
 type tokenToEmail struct {
@@ -266,7 +265,12 @@ func (e *Signup) completeSignup(ctx context.Context, req *onboarding.CompleteSig
 	}
 	rsp.CustomerID = tok.CustomerID
 	rsp.Namespace = microNamespace
-	if err := mevents.Publish(topic, &onboarding.Event{Type: "newSignup", NewSignup: &onboarding.NewSignupEvent{Email: tok.Email, Id: tok.CustomerID}}); err != nil {
+
+	if err := mevents.Publish(eventspb.Topic, &eventspb.Event{
+		Type:     eventspb.EventType_EventTypeSignup,
+		Customer: &eventspb.Customer{Id: tok.CustomerID},
+		Signup:   &eventspb.Signup{Method: "email"},
+	}); err != nil {
 		logger.Warnf("Error publishing %s", err)
 	}
 
@@ -280,9 +284,20 @@ func (e *Signup) Recover(ctx context.Context, req *onboarding.RecoverRequest, rs
 		return merrors.BadRequest("onboarding.recover", "We have issued a recovery email recently. Please check that.")
 	}
 
+	// is this even a user?
+	crsp, err := e.customerService.Read(ctx, &cproto.ReadRequest{Email: req.Email}, client.WithAuthToken())
+	if err != nil {
+		if merr, ok := err.(*merrors.Error); ok && (merr.Code == 404 || strings.Contains(merr.Detail, "not found")) {
+			// security, don't report back to user but don't send an email
+			return nil
+		}
+		logger.Errorf("Error sending recovery email")
+		return merrors.InternalServerError("onboarding.recover", "Error while trying to send recovery email, please try again later")
+	}
+
 	token := uuid.New().String()
 	created := time.Now().Unix()
-	err := e.resetCode.Create(ResetToken{
+	err = e.resetCode.Create(ResetToken{
 		ID:      req.Email,
 		Token:   token,
 		Created: created,
@@ -299,7 +314,17 @@ func (e *Signup) Recover(ctx context.Context, req *onboarding.RecoverRequest, rs
 		e.cache.Set(req.Email, true, cache.DefaultExpiration)
 	}
 
-	if err := mevents.Publish(topic, &onboarding.Event{Type: "passwordReset", PasswordReset: &onboarding.PasswordResetEvent{Email: req.Email}}); err != nil {
+	if err := mevents.Publish(eventspb.Topic, &eventspb.Event{
+		Type: eventspb.EventType_EventTypePasswordReset,
+		Customer: &eventspb.Customer{
+			Id:      crsp.Customer.Id,
+			Email:   crsp.Customer.Email,
+			Status:  crsp.Customer.Status,
+			Created: crsp.Customer.Created,
+			Updated: crsp.Customer.Updated,
+		},
+		PasswordReset: &eventspb.PasswordReset{},
+	}); err != nil {
 		logger.Warnf("Error publishing %s", err)
 	}
 

@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package requestsevents;
+
+option go_package = "./proto;requests";
+
+enum EventType {
+  EventTypeUnknown = 0;
+  EventTypeRequest = 1;
+}
+
+message Event {
+  Request request = 1;
+  EventType type = 3;
+}
+
+message Request {
+  string user_id = 1;
+  string namespace = 2;
+  string api_key_id = 3;
+  string url = 4;
+  string api_name = 5;
+  string endpoint_name = 6;
+}
+
+

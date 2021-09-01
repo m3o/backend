@@ -70,6 +70,36 @@ type FakeCustomersService struct {
 		result1 *customers.ListResponse
 		result2 error
 	}
+	LoginStub        func(context.Context, *customers.LoginRequest, ...client.CallOption) (*customers.LoginResponse, error)
+	loginMutex       sync.RWMutex
+	loginArgsForCall []struct {
+		arg1 context.Context
+		arg2 *customers.LoginRequest
+		arg3 []client.CallOption
+	}
+	loginReturns struct {
+		result1 *customers.LoginResponse
+		result2 error
+	}
+	loginReturnsOnCall map[int]struct {
+		result1 *customers.LoginResponse
+		result2 error
+	}
+	LogoutStub        func(context.Context, *customers.LogoutRequest, ...client.CallOption) (*customers.LogoutResponse, error)
+	logoutMutex       sync.RWMutex
+	logoutArgsForCall []struct {
+		arg1 context.Context
+		arg2 *customers.LogoutRequest
+		arg3 []client.CallOption
+	}
+	logoutReturns struct {
+		result1 *customers.LogoutResponse
+		result2 error
+	}
+	logoutReturnsOnCall map[int]struct {
+		result1 *customers.LogoutResponse
+		result2 error
+	}
 	MarkVerifiedStub        func(context.Context, *customers.MarkVerifiedRequest, ...client.CallOption) (*customers.MarkVerifiedResponse, error)
 	markVerifiedMutex       sync.RWMutex
 	markVerifiedArgsForCall []struct {
@@ -398,6 +428,138 @@ func (fake *FakeCustomersService) ListReturnsOnCall(i int, result1 *customers.Li
 	}{result1, result2}
 }
 
+func (fake *FakeCustomersService) Login(arg1 context.Context, arg2 *customers.LoginRequest, arg3 ...client.CallOption) (*customers.LoginResponse, error) {
+	fake.loginMutex.Lock()
+	ret, specificReturn := fake.loginReturnsOnCall[len(fake.loginArgsForCall)]
+	fake.loginArgsForCall = append(fake.loginArgsForCall, struct {
+		arg1 context.Context
+		arg2 *customers.LoginRequest
+		arg3 []client.CallOption
+	}{arg1, arg2, arg3})
+	stub := fake.LoginStub
+	fakeReturns := fake.loginReturns
+	fake.recordInvocation("Login", []interface{}{arg1, arg2, arg3})
+	fake.loginMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3...)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeCustomersService) LoginCallCount() int {
+	fake.loginMutex.RLock()
+	defer fake.loginMutex.RUnlock()
+	return len(fake.loginArgsForCall)
+}
+
+func (fake *FakeCustomersService) LoginCalls(stub func(context.Context, *customers.LoginRequest, ...client.CallOption) (*customers.LoginResponse, error)) {
+	fake.loginMutex.Lock()
+	defer fake.loginMutex.Unlock()
+	fake.LoginStub = stub
+}
+
+func (fake *FakeCustomersService) LoginArgsForCall(i int) (context.Context, *customers.LoginRequest, []client.CallOption) {
+	fake.loginMutex.RLock()
+	defer fake.loginMutex.RUnlock()
+	argsForCall := fake.loginArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeCustomersService) LoginReturns(result1 *customers.LoginResponse, result2 error) {
+	fake.loginMutex.Lock()
+	defer fake.loginMutex.Unlock()
+	fake.LoginStub = nil
+	fake.loginReturns = struct {
+		result1 *customers.LoginResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeCustomersService) LoginReturnsOnCall(i int, result1 *customers.LoginResponse, result2 error) {
+	fake.loginMutex.Lock()
+	defer fake.loginMutex.Unlock()
+	fake.LoginStub = nil
+	if fake.loginReturnsOnCall == nil {
+		fake.loginReturnsOnCall = make(map[int]struct {
+			result1 *customers.LoginResponse
+			result2 error
+		})
+	}
+	fake.loginReturnsOnCall[i] = struct {
+		result1 *customers.LoginResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeCustomersService) Logout(arg1 context.Context, arg2 *customers.LogoutRequest, arg3 ...client.CallOption) (*customers.LogoutResponse, error) {
+	fake.logoutMutex.Lock()
+	ret, specificReturn := fake.logoutReturnsOnCall[len(fake.logoutArgsForCall)]
+	fake.logoutArgsForCall = append(fake.logoutArgsForCall, struct {
+		arg1 context.Context
+		arg2 *customers.LogoutRequest
+		arg3 []client.CallOption
+	}{arg1, arg2, arg3})
+	stub := fake.LogoutStub
+	fakeReturns := fake.logoutReturns
+	fake.recordInvocation("Logout", []interface{}{arg1, arg2, arg3})
+	fake.logoutMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3...)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeCustomersService) LogoutCallCount() int {
+	fake.logoutMutex.RLock()
+	defer fake.logoutMutex.RUnlock()
+	return len(fake.logoutArgsForCall)
+}
+
+func (fake *FakeCustomersService) LogoutCalls(stub func(context.Context, *customers.LogoutRequest, ...client.CallOption) (*customers.LogoutResponse, error)) {
+	fake.logoutMutex.Lock()
+	defer fake.logoutMutex.Unlock()
+	fake.LogoutStub = stub
+}
+
+func (fake *FakeCustomersService) LogoutArgsForCall(i int) (context.Context, *customers.LogoutRequest, []client.CallOption) {
+	fake.logoutMutex.RLock()
+	defer fake.logoutMutex.RUnlock()
+	argsForCall := fake.logoutArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeCustomersService) LogoutReturns(result1 *customers.LogoutResponse, result2 error) {
+	fake.logoutMutex.Lock()
+	defer fake.logoutMutex.Unlock()
+	fake.LogoutStub = nil
+	fake.logoutReturns = struct {
+		result1 *customers.LogoutResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeCustomersService) LogoutReturnsOnCall(i int, result1 *customers.LogoutResponse, result2 error) {
+	fake.logoutMutex.Lock()
+	defer fake.logoutMutex.Unlock()
+	fake.LogoutStub = nil
+	if fake.logoutReturnsOnCall == nil {
+		fake.logoutReturnsOnCall = make(map[int]struct {
+			result1 *customers.LogoutResponse
+			result2 error
+		})
+	}
+	fake.logoutReturnsOnCall[i] = struct {
+		result1 *customers.LogoutResponse
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeCustomersService) MarkVerified(arg1 context.Context, arg2 *customers.MarkVerifiedRequest, arg3 ...client.CallOption) (*customers.MarkVerifiedResponse, error) {
 	fake.markVerifiedMutex.Lock()
 	ret, specificReturn := fake.markVerifiedReturnsOnCall[len(fake.markVerifiedArgsForCall)]
@@ -673,6 +835,10 @@ func (fake *FakeCustomersService) Invocations() map[string][][]interface{} {
 	defer fake.deleteMutex.RUnlock()
 	fake.listMutex.RLock()
 	defer fake.listMutex.RUnlock()
+	fake.loginMutex.RLock()
+	defer fake.loginMutex.RUnlock()
+	fake.logoutMutex.RLock()
+	defer fake.logoutMutex.RUnlock()
 	fake.markVerifiedMutex.RLock()
 	defer fake.markVerifiedMutex.RUnlock()
 	fake.readMutex.RLock()
