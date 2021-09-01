@@ -38,6 +38,8 @@ const (
 
 	prefixCustomer      = "customers/"
 	prefixCustomerEmail = "email/"
+
+	microNamespace = "micro"
 )
 
 var validStatus = map[string]bool{
@@ -302,7 +304,7 @@ func authorizeCall(ctx context.Context, customerID string) error {
 	if !ok {
 		return errors.Unauthorized("customers", "Unauthorized request")
 	}
-	if account.Issuer != "micro" {
+	if account.Issuer != microNamespace {
 		return errors.Unauthorized("customers", "Unauthorized request")
 	}
 	if account.Type == "customer" && account.ID == customerID {
@@ -322,7 +324,7 @@ func authorizeAdmin(ctx context.Context) error {
 	if !ok {
 		return errors.Unauthorized("customers", "Unauthorized request")
 	}
-	if account.Issuer != "micro" {
+	if account.Issuer != microNamespace {
 		return errors.Unauthorized("customers", "Unauthorized request")
 	}
 	if account.Type == "user" && hasScope("admin", account.Scopes) {
@@ -346,7 +348,7 @@ func hasScope(scope string, scopes []string) bool {
 func (c *Customers) deleteCustomer(ctx context.Context, customerID string, force bool) error {
 	_, err := c.accountsService.Delete(ctx, &aproto.DeleteAccountRequest{
 		Id:      customerID,
-		Options: &aproto.Options{Namespace: "micro"},
+		Options: &aproto.Options{Namespace: microNamespace},
 	}, client.WithAuthToken())
 	if ignoreDeleteError(err) != nil {
 		return err
@@ -418,7 +420,7 @@ func ignoreDeleteError(err error) error {
 // List is a temporary endpoint which will very quickly become unusable due to the way it lists entries
 func (c *Customers) List(ctx context.Context, request *customer.ListRequest, response *customer.ListResponse) error {
 	acc, ok := auth.AccountFromContext(ctx)
-	if !ok || acc.Issuer != "micro" || acc.Type != "user" || !hasScope("admin", acc.Scopes) {
+	if !ok || acc.Issuer != microNamespace || acc.Type != "user" || !hasScope("admin", acc.Scopes) {
 		return errors.Unauthorized("customers", "Unauthorized")
 	}
 
@@ -616,7 +618,7 @@ func (c *Customers) createAuthAccount(ctx context.Context, id, email string) (*a
 	acc, err := c.auth.Generate(id,
 		auth.WithScopes("customer"),
 		auth.WithSecret(secret),
-		auth.WithIssuer("micro"),
+		auth.WithIssuer(microNamespace),
 		auth.WithName(email),
 		auth.WithType("customer"))
 	if err != nil {
@@ -624,4 +626,82 @@ func (c *Customers) createAuthAccount(ctx context.Context, id, email string) (*a
 		return nil, errors.InternalServerError("customers.account", "Error generating account")
 	}
 	return acc, nil
+}
+
+func (c *Customers) Login(ctx context.Context, request *customer.LoginRequest, response *customer.LoginResponse) error {
+	opts := []auth.TokenOption{
+		auth.WithTokenIssuer(microNamespace),
+		auth.WithExpiry(8 * time.Hour),
+	}
+	if len(request.RefreshToken) > 0 {
+		opts = append(opts, auth.WithToken(request.RefreshToken))
+	}
+
+	if len(request.Password) > 0 {
+		opts = append(opts, auth.WithCredentials(request.Email, request.Password))
+	}
+	tok, err := c.auth.Token(opts...)
+	if err != nil {
+		if merr, ok := err.(*errors.Error); ok {
+			if merr.Code == 400 {
+				return errors.BadRequest("customers.login", merr.Detail)
+			}
+			return errors.InternalServerError("customers.login", "Error attempting to log in. Please try again later")
+		}
+
+	}
+	response.RefreshToken = tok.RefreshToken
+	response.Expiry = tok.Expiry.Unix()
+	response.AccessToken = tok.AccessToken
+
+	go func() {
+		acc, err := c.auth.Inspect(tok.AccessToken)
+		if err != nil {
+			log.Errorf("Error inspecting generated token")
+			return
+		}
+		cust, err := readCustomerByID(acc.ID)
+		if err != nil {
+			log.Errorf("Error reading customer %s", err)
+			return
+		}
+		// is this a login or a refresh?
+		if len(request.Password) > 0 {
+			mevents.Publish(eventspb.Topic, &eventspb.Event{
+				Type:     eventspb.EventType_EventTypeLogin,
+				Customer: objToEvent(cust),
+				Login:    &eventspb.Login{Method: "email"},
+			})
+		} else {
+			mevents.Publish(eventspb.Topic, &eventspb.Event{
+				Type:         eventspb.EventType_EventTypeTokenRefresh,
+				Customer:     objToEvent(cust),
+				TokenRefresh: &eventspb.TokenRefresh{},
+			})
+		}
+	}()
+
+	return nil
+}
+
+func (c *Customers) Logout(ctx context.Context, request *customer.LogoutRequest, response *customer.LogoutResponse) error {
+	acc, ok := auth.AccountFromContext(ctx)
+	if !ok {
+		// ignore
+		return nil
+	}
+	go func() {
+		cust, err := readCustomerByID(acc.ID)
+		if err != nil {
+			log.Errorf("Error reading customer %s", err)
+			return
+		}
+		mevents.Publish(eventspb.Topic, &eventspb.Event{
+			Type:     eventspb.EventType_EventTypeLogout,
+			Customer: objToEvent(cust),
+			Logout:   &eventspb.Logout{},
+		})
+	}()
+
+	return nil
 }

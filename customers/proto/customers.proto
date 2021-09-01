@@ -20,6 +20,10 @@ service Customers {
 	rpc Ban(BanRequest) returns (BanResponse) {}
 	// Unban the customer
 	rpc Unban(UnbanRequest) returns (UnbanResponse) {}
+	// Login returns an auth token
+	rpc Login(LoginRequest) returns (LoginResponse) {}
+	// Logout logs the user out
+	rpc Logout(LogoutRequest) returns (LogoutResponse) {}
 }
 
 message CreateRequest {
@@ -91,3 +95,23 @@ message UnbanRequest {
 }
 
 message UnbanResponse {}
+
+message LoginRequest {
+	string email = 1;
+	string password = 2;
+	string refresh_token = 3;
+}
+
+message LoginResponse {
+	string access_token = 1;
+	string refresh_token = 2;
+	int64 expiry = 3;
+}
+
+message LogoutRequest {
+
+}
+
+message LogoutResponse {
+
+}

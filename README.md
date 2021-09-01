@@ -39,7 +39,8 @@ const Topic = "customers"
 
 See existing directories for examples.
 
-
+### Mixpanel
+Events are forwarded to Mixpanel for analysis. Due to the way enum types are converted to their string representation we need to redeploy the Mixpanel service every time we add events otherwise they will get incorrectly reported.
 
 ## Naming
 

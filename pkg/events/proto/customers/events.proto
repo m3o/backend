@@ -19,15 +19,14 @@ enum EventType {
   EventTypeAddPaymentMethod = 11;
   EventTypeDeletePaymentMethod = 12;
   EventTypePasswordReset = 13;
-  // TODO no yet implemented
   EventTypeLogin = 14;
-  // TODO no yet implemented
   EventTypeLogout = 15;
   EventTypeBlockKey = 16;
   EventTypeUnblockKey = 17;
   EventTypeBalanceIncrement = 18;
   EventTypeBalanceZero = 19;
   EventTypeBalanceDecrement = 20;
+  EventTypeTokenRefresh = 21;
 }
 
 // Event holds the customer object plus event specific data in the respective field
@@ -56,6 +55,7 @@ message Event {
   BlockKey block_key = 19;
   UnblockKey unblock_key = 20;
   BalanceDecrement balance_decrement = 21;
+  TokenRefresh token_refresh = 22;
 }
 
 message Customer {
@@ -134,4 +134,8 @@ message BalanceDecrement {
   int64 amount = 1;
   string type = 2;
   string reference = 3;
+}
+
+message TokenRefresh {
+
 }
