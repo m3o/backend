@@ -29,9 +29,11 @@ func New(serv *service.Service) *Mailchimp {
 		logger.Fatalf("Error reading config %s", err)
 	}
 
-	return &Mailchimp{
+	mc := &Mailchimp{
 		cfg: cfg,
 	}
+	mc.consumeEvents()
+	return mc
 }
 
 func (m *Mailchimp) AddCustomer(ctx context.Context, request *pb.AddCustomerRequest, response *pb.AddCustomerResponse) error {
