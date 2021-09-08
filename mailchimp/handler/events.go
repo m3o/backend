@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	pevents "github.com/m3o/services/pkg/events"
 	"github.com/m3o/services/pkg/events/proto/customers"
@@ -57,6 +58,11 @@ func (m *Mailchimp) addCustomer(email string) error {
 	// 'https://${dc}.api.mailchimp.com/3.0/lists/{list_id}/members?skip_merge_validation=<SOME_BOOLEAN_VALUE>' \
 	//  --user "anystring:${apikey}"' \
 	//  -d '{"email_address":"","email_type":"","status":"subscribed","merge_fields":{},"interests":{},"language":"","vip":false,"location":{"latitude":0,"longitude":0},"marketing_permissions":[],"ip_signup":"","timestamp_signup":"","ip_opt":"","timestamp_opt":"","tags":[]}'
+	for _, v := range m.cfg.BlockList {
+		if strings.EqualFold(v, email) {
+			return nil
+		}
+	}
 	mm := newMailchimpMember(email)
 	b, _ := json.Marshal(mm)
 	req, err := http.NewRequest("POST", mailchimpURL+"/lists/"+m.cfg.MainListID+"/members", bytes.NewBuffer(b))

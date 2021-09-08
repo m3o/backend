@@ -15,8 +15,9 @@ type Mailchimp struct {
 }
 
 type mailchimpConfig struct {
-	MainListID string `json:"main_list_id"`
-	ApiKey     string `json:"api_key"`
+	MainListID string   `json:"main_list_id"`
+	ApiKey     string   `json:"api_key"`
+	BlockList  []string `json:"block_list"`
 }
 
 func New(serv *service.Service) *Mailchimp {
