@@ -97,8 +97,8 @@ func (m *Mailchimp) deleteCustomer(email string) error {
 	// curl -X POST \
 	//  https://us8.api.mailchimp.com/3.0/lists/{list_id}/members/{subscriber_hash}/actions/delete-permanent \
 	//  --user "anystring:${apikey}"'
-	hash := md5.Sum([]byte(email))
-	req, err := http.NewRequest("POST", mailchimpURL+"/lists/"+m.cfg.MainListID+"/members/"+fmt.Sprintf("%s", hash)+"/actions/delete-permanent", nil)
+	hash := md5.Sum([]byte(strings.ToLower(email)))
+	req, err := http.NewRequest("POST", mailchimpURL+"/lists/"+m.cfg.MainListID+"/members/"+fmt.Sprintf("%x", hash)+"/actions/delete-permanent", nil)
 	if err != nil {
 		logger.Errorf("Error creating request %s", err)
 		return err
