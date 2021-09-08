@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	mailchimpURL = "https://${dc}.api.mailchimp.com/3.0"
+	mailchimpURL = "https://us8.api.mailchimp.com/3.0"
 )
 
 func (m *Mailchimp) consumeEvents() {
@@ -89,7 +89,7 @@ func (m *Mailchimp) processCustomerDelete(ctx context.Context, ev *customers.Eve
 func (m *Mailchimp) deleteCustomer(email string) error {
 	// delete from mailchimp
 	// curl -X POST \
-	//  https://${dc}.api.mailchimp.com/3.0/lists/{list_id}/members/{subscriber_hash}/actions/delete-permanent \
+	//  https://us8.api.mailchimp.com/3.0/lists/{list_id}/members/{subscriber_hash}/actions/delete-permanent \
 	//  --user "anystring:${apikey}"'
 	hash := md5.Sum([]byte(email))
 	req, err := http.NewRequest("POST", mailchimpURL+"/lists/"+m.cfg.MainListID+"/members/"+fmt.Sprintf("%s", hash)+"/actions/delete-permanent", nil)
