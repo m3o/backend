@@ -213,6 +213,9 @@ func (e *Explore) Search(ctx context.Context, request *pb.SearchRequest, respons
 
 	if request.SearchTerm == "" {
 		for _, api := range list {
+			if len(request.Category) > 0 && request.Category != api.ExploreAPI.Category {
+				continue
+			}
 			response.Apis = append(response.Apis, api.ExploreAPI)
 		}
 		return nil
@@ -228,6 +231,10 @@ func (e *Explore) Search(ctx context.Context, request *pb.SearchRequest, respons
 	matchedOther := []*pb.ExploreAPI{}
 
 	for _, api := range list {
+		if len(request.Category) > 0 && request.Category != api.ExploreAPI.Category {
+			continue
+		}
+
 		if strings.Contains(strings.ToLower(api.ExploreAPI.Name), request.SearchTerm) {
 			matchedName = append(matchedName, api.ExploreAPI)
 			continue

@@ -38,6 +38,7 @@ message IndexResponse {
 
 message SearchRequest {
 	string search_term = 1;
+	string category = 2;
 }
 
 message SearchResponse {
