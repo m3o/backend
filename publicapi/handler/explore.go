@@ -125,7 +125,7 @@ func (e *Explore) loadCache() ([]*API, error) {
 		catCache[ae.Category] = true
 	}
 
-	catCacheSlice := make([]string, len(catCache))
+	catCacheSlice := make([]string, 0, len(catCache))
 	for k, _ := range catCache {
 		catCacheSlice = append(catCacheSlice, k)
 	}
