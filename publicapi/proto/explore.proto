@@ -10,6 +10,7 @@ service Explore {
 	rpc Index(IndexRequest) returns (IndexResponse) {}
 	rpc Search(SearchRequest) returns (SearchResponse) {}
 	rpc API(APIRequest) returns (APIResponse) {}
+	rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse) {}
 }
 
 // ExploreAPI is returned for index/search endpoints
@@ -54,3 +55,8 @@ message APIResponse {
 	PublicAPI api = 2;
 }
 
+message ListCategoriesRequest {}
+
+message ListCategoriesResponse {
+	repeated string categories = 1;
+}

@@ -21,6 +21,7 @@ import (
 type Explore struct {
 	sync.RWMutex
 	apiCache    []*API
+	catCache    []string
 	regCache    map[string]*registry.Service
 	lastUpdated time.Time
 	trackSearch model.Model
@@ -91,6 +92,7 @@ func (e *Explore) loadCache() ([]*API, error) {
 
 	regCache := map[string]*registry.Service{}
 	apiCache := []*API{}
+	catCache := map[string]bool{}
 
 	// create a registry cache
 	for _, s := range svcs {
@@ -120,12 +122,19 @@ func (e *Explore) loadCache() ([]*API, error) {
 			PublicAPI:  marshal(&ae),
 			ExploreAPI: marshalExploreAPI(&ae, svc),
 		})
+		catCache[ae.Category] = true
+	}
+
+	catCacheSlice := make([]string, len(catCache))
+	for k, _ := range catCache {
+		catCacheSlice = append(catCacheSlice, k)
 	}
 
 	e.Lock()
 	e.regCache = regCache
 	e.lastUpdated = time.Now()
 	e.apiCache = apiCache
+	e.catCache = catCacheSlice
 	e.Unlock()
 
 	// return the api cache
@@ -284,4 +293,31 @@ func (e *Explore) API(ctx context.Context, request *pb.APIRequest, response *pb.
 
 	return errors.NotFound("explore.API", "not found")
 
+}
+
+func (e *Explore) ListCategories(ctx context.Context, request *pb.ListCategoriesRequest, response *pb.ListCategoriesResponse) error {
+	var err error
+	response.Categories, err = e.catList()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *Explore) catList() ([]string, error) {
+	e.RLock()
+	cache := e.catCache
+	e.RUnlock()
+
+	if len(cache) > 0 {
+		return cache, nil
+	}
+
+	if _, err := e.loadCache(); err != nil {
+		return nil, err
+	}
+	e.RLock()
+	cache = e.catCache
+	e.RUnlock()
+	return cache, nil
 }

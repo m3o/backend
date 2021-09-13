@@ -45,6 +45,7 @@ type ExploreService interface {
 	Index(ctx context.Context, in *IndexRequest, opts ...client.CallOption) (*IndexResponse, error)
 	Search(ctx context.Context, in *SearchRequest, opts ...client.CallOption) (*SearchResponse, error)
 	API(ctx context.Context, in *APIRequest, opts ...client.CallOption) (*APIResponse, error)
+	ListCategories(ctx context.Context, in *ListCategoriesRequest, opts ...client.CallOption) (*ListCategoriesResponse, error)
 }
 
 type exploreService struct {
@@ -89,12 +90,23 @@ func (c *exploreService) API(ctx context.Context, in *APIRequest, opts ...client
 	return out, nil
 }
 
+func (c *exploreService) ListCategories(ctx context.Context, in *ListCategoriesRequest, opts ...client.CallOption) (*ListCategoriesResponse, error) {
+	req := c.c.NewRequest(c.name, "Explore.ListCategories", in)
+	out := new(ListCategoriesResponse)
+	err := c.c.Call(ctx, req, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for Explore service
 
 type ExploreHandler interface {
 	Index(context.Context, *IndexRequest, *IndexResponse) error
 	Search(context.Context, *SearchRequest, *SearchResponse) error
 	API(context.Context, *APIRequest, *APIResponse) error
+	ListCategories(context.Context, *ListCategoriesRequest, *ListCategoriesResponse) error
 }
 
 func RegisterExploreHandler(s server.Server, hdlr ExploreHandler, opts ...server.HandlerOption) error {
@@ -102,6 +114,7 @@ func RegisterExploreHandler(s server.Server, hdlr ExploreHandler, opts ...server
 		Index(ctx context.Context, in *IndexRequest, out *IndexResponse) error
 		Search(ctx context.Context, in *SearchRequest, out *SearchResponse) error
 		API(ctx context.Context, in *APIRequest, out *APIResponse) error
+		ListCategories(ctx context.Context, in *ListCategoriesRequest, out *ListCategoriesResponse) error
 	}
 	type Explore struct {
 		explore
@@ -124,4 +137,8 @@ func (h *exploreHandler) Search(ctx context.Context, in *SearchRequest, out *Sea
 
 func (h *exploreHandler) API(ctx context.Context, in *APIRequest, out *APIResponse) error {
 	return h.ExploreHandler.API(ctx, in, out)
+}
+
+func (h *exploreHandler) ListCategories(ctx context.Context, in *ListCategoriesRequest, out *ListCategoriesResponse) error {
+	return h.ExploreHandler.ListCategories(ctx, in, out)
 }
